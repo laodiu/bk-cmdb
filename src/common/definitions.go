@@ -777,7 +777,7 @@ const (
 	FieldTypeServiceCategoryRegexp string = `^([\w\p{Han}]|[:\-\(\)])+$`
 
 	//FieldTypeMainlineRegexp the mainline instance name regex expression
-	FieldTypeMainlineRegexp string = `^[^\|/:*,<>"?# ]+$`
+	FieldTypeMainlineRegexp string = `^[^\\\|\/:\*,<>"\?#\s]+$`
 
 	//FieldTypeSingleCharRegexp the single char regex expression
 	//FieldTypeSingleCharRegexp string = `^([\w\p{Han}]|[，。？！={}|?<>~～、：＃；％＊——……＆·＄（）‘’“”\[\]『』〔〕｛｝【】￥￡♀‖〖〗《》「」:,;\."'\/\\\+\-\s#@\(\)])+$`
@@ -988,6 +988,12 @@ const (
 	HostOSTypeEnumLinux   = "1"
 	HostOSTypeEnumWindows = "2"
 	HostOSTypeEnumAIX     = "3"
+	HostOSTypeEnumUNIX    = "4"
+)
+
+const (
+	MaxProcessPrio = 10000
+	MinProcessPrio = -100
 )
 
 // integer const

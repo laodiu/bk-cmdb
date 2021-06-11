@@ -9,42 +9,31 @@
  * either express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package y3_8_202006092135
+package y3_9_202106031151
 
 import (
 	"context"
-	"time"
 
-	"configcenter/src/common"
 	"configcenter/src/common/blog"
 	"configcenter/src/scene_server/admin_server/upgrader"
 	"configcenter/src/storage/dal"
 )
 
-func initConfigAdmin(ctx context.Context, db dal.RDB, conf *upgrader.Config) error {
+func init() {
 
-	cond := map[string]interface{}{
-		"_id": common.ConfigAdminID,
-	}
+	upgrader.RegistUpgrader("y3.9.202106031151", upgrade)
+}
 
-	cnt, err := db.Table(common.BKTableNameSystem).Find(cond).Count(ctx)
+func upgrade(ctx context.Context, db dal.RDB, conf *upgrader.Config) (err error) {
+	err = addUnixProperty(ctx, db, conf)
 	if err != nil {
-		blog.ErrorJSON("insert failed, find err:%s, cond:%s", "", err, cond)
+		blog.Errorf("[upgrade y3.9.202106031151] addUnixProperty error  %s", err.Error())
 		return err
 	}
-
-	if cnt == 0 {
-		doc := map[string]interface{}{
-			"_id":                  common.ConfigAdminID,
-			common.CreateTimeField: time.Now(),
-			common.LastTimeField:   time.Now(),
-		}
-		if err := db.Table(common.BKTableNameSystem).Insert(ctx, doc); err != nil {
-			blog.ErrorJSON("insert failed, insert err:%s, doc: %s", err, doc)
-			return err
-		}
+	err = updatePriorityProperty(ctx, db, conf)
+	if err != nil {
+		blog.Errorf("[upgrade y3.9.202106031151] addUnixProperty error  %s", err.Error())
+		return err
 	}
-
-	return upgrader.UpgradeConfigAdmin(ctx, db, "y3.8.202006092135")
+	return
 }
