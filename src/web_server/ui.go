@@ -47,5 +47,4 @@ func main() {
 		blog.CloseLogs()
 		os.Exit(1)
 	}
-	fmt.Println("ctxaa:", ctx)
 }
