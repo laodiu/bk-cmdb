@@ -251,7 +251,6 @@ func (s *Service) BatchCreateOrUpdateHostApplyRule(ctx *rest.Contexts) {
 
 func (s *Service) GenerateApplyPlan(ctx *rest.Contexts) {
 	rid := ctx.Kit.Rid
-
 	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
 	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
 	if err != nil {
@@ -277,7 +276,6 @@ func (s *Service) GenerateApplyPlan(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
-
 	var ccErr errors.CCErrorCoder
 	for _, item := range result.Plans {
 		if err := item.GetError(); err != nil {
@@ -299,7 +297,6 @@ func (s *Service) GenerateApplyPlan(ctx *rest.Contexts) {
 func (s *Service) generateApplyPlan(ctx *rest.Contexts, bizID int64, planRequest metadata.HostApplyPlanRequest) (metadata.HostApplyPlanResult, errors.CCErrorCoder) {
 	rid := ctx.Kit.Rid
 	var planResult metadata.HostApplyPlanResult
-
 	relationRequest := &metadata.HostModuleRelationRequest{
 		ApplicationID: bizID,
 		ModuleIDArr:   planRequest.ModuleIDs,
@@ -397,7 +394,6 @@ func (s *Service) generateApplyPlan(ctx *rest.Contexts, bizID int64, planRequest
 		HostModules:       hostModules,
 		ConflictResolvers: planRequest.ConflictResolvers,
 	}
-
 	planResult, ccErr = s.CoreAPI.CoreService().HostApplyRule().GenerateApplyPlan(ctx.Kit.Ctx, ctx.Kit.Header, bizID, planOption)
 	if err != nil {
 		blog.ErrorJSON("generateApplyPlan failed, core service GenerateApplyPlan failed, bizID: %s, option: %s, err: %s, rid: %s", bizID, planOption, ccErr.Error(), rid)

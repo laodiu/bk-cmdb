@@ -13,12 +13,11 @@
 package service
 
 import (
-	"strconv"
-
 	"configcenter/src/common"
 	"configcenter/src/common/blog"
 	"configcenter/src/common/http/rest"
 	"configcenter/src/common/metadata"
+	"strconv"
 )
 
 func (s *coreService) CreateHostApplyRule(ctx *rest.Contexts) {
@@ -150,13 +149,11 @@ func (s *coreService) GenerateApplyPlan(ctx *rest.Contexts) {
 		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
 		return
 	}
-
 	option := metadata.HostApplyPlanOption{}
 	if err := ctx.DecodeInto(&option); nil != err {
 		ctx.RespAutoError(err)
 		return
 	}
-
 	applyPlans, err := s.core.HostApplyRuleOperation().GenerateApplyPlan(ctx.Kit, bizID, option)
 	if err != nil {
 		blog.Errorf("GenerateApplyPlan failed, bizID: %d, option: %+v, err: %+v, rid: %s", bizID, option, err, ctx.Kit.Rid)

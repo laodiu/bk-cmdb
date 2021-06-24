@@ -14,10 +14,6 @@ package service
 
 import (
 	"bytes"
-	"io/ioutil"
-	"sort"
-	"strconv"
-
 	"configcenter/src/ac/iam"
 	"configcenter/src/common"
 	"configcenter/src/common/auth"
@@ -26,6 +22,9 @@ import (
 	"configcenter/src/common/http/rest"
 	"configcenter/src/common/metadata"
 	"configcenter/src/scene_server/topo_server/core/model"
+	"io/ioutil"
+	"sort"
+	"strconv"
 
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
@@ -142,8 +141,7 @@ func (s *Service) SearchBusinessTopo(ctx *rest.Contexts) {
 
 // SearchBusinessTopo search the business topo
 // withSortName 按拼音对名字排序，ui 专用
-func (s *Service) searchBusinessTopo(ctx *rest.Contexts,
-	withStatistics, withSortName bool) ([]*metadata.TopoInstRst, error) {
+func (s *Service) searchBusinessTopo(ctx *rest.Contexts, withStatistics, withSortName bool) ([]*metadata.TopoInstRst, error) {
 	id, err := strconv.ParseInt(ctx.Request.PathParameter("bk_biz_id"), 10, 64)
 	if nil != err {
 		blog.Errorf("[api-asst] failed to parse the path params id(%s), error info is %s , rid: %s", ctx.Request.PathParameter("app_id"), err.Error(), ctx.Kit.Rid)

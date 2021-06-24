@@ -96,7 +96,6 @@ func (s *AuthService) ListAuthorizedResources(ctx *rest.Contexts) {
 		}
 		resources = append(resources, resource)
 	}
-
 	ops := &types.AuthOptions{
 		System: iam.SystemIDCMDB,
 		Subject: types.Subject{

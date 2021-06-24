@@ -414,7 +414,6 @@ func (r *Result) Into(obj interface{}) error {
 	if nil != r.Err {
 		return r.Err
 	}
-
 	if 0 != len(r.Body) {
 		err := json.Unmarshal(r.Body, obj)
 		if nil != err {

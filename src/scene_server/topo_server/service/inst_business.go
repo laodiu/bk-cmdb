@@ -14,6 +14,7 @@ package service
 
 import (
 	"encoding/json"
+	"log"
 	"reflect"
 	"sort"
 	"strconv"
@@ -251,7 +252,6 @@ func (s *Service) SearchReducedBusinessList(ctx *rest.Contexts) {
 			common.BKDefaultField:    0,
 		},
 	}
-
 	if s.AuthManager.Enabled() {
 		authInput := meta.ListAuthorizedResourcesParam{
 			UserName:     ctx.Kit.User,
@@ -259,6 +259,7 @@ func (s *Service) SearchReducedBusinessList(ctx *rest.Contexts) {
 			Action:       meta.ViewBusinessResource,
 		}
 		authorizedResources, err := s.AuthManager.Authorizer.ListAuthorizedResources(ctx.Kit.Ctx, ctx.Kit.Header, authInput)
+		log.Println("err：", err)
 		if err != nil {
 			blog.Errorf("[api-biz] SearchReducedBusinessList failed, ListAuthorizedResources failed, user: %s, err: %s, rid: %s", ctx.Kit.User, err.Error(), ctx.Kit.Rid)
 			ctx.RespAutoError(ctx.Kit.CCError.CCError(common.CCErrorTopoGetAuthorizedBusinessListFailed))

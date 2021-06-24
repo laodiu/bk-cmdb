@@ -13,10 +13,6 @@
 package hostapplyrule
 
 import (
-	"fmt"
-	"sort"
-	"strings"
-
 	"configcenter/src/common"
 	"configcenter/src/common/blog"
 	"configcenter/src/common/errors"
@@ -25,6 +21,9 @@ import (
 	"configcenter/src/common/metadata"
 	"configcenter/src/common/util"
 	"configcenter/src/storage/driver/mongodb"
+	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -32,7 +31,6 @@ import (
 // GenerateApplyPlan 生成主机属性自动应用执行计划
 func (p *hostApplyRule) GenerateApplyPlan(kit *rest.Kit, bizID int64, option metadata.HostApplyPlanOption) (metadata.HostApplyPlanResult, errors.CCErrorCoder) {
 	rid := kit.Rid
-
 	result := metadata.HostApplyPlanResult{
 		Plans:          make([]metadata.OneHostApplyPlan, 0),
 		HostAttributes: make([]metadata.Attribute, 0),
@@ -48,8 +46,29 @@ func (p *hostApplyRule) GenerateApplyPlan(kit *rest.Kit, bizID int64, option met
 			common.BKDBIN: hostIDs,
 		},
 	}
+
+	// get attributes
+	attributeIDs := make([]int64, 0)
+	for _, item := range option.Rules {
+		attributeIDs = append(attributeIDs, item.AttributeID)
+	}
+	attributes, err := p.listHostAttributes(kit, bizID, attributeIDs...)
+	if err != nil {
+		blog.ErrorJSON("GenerateApplyPlan failed, listHostAttributes failed, attributeIDs: %s, err: %s, rid: %s",
+			attributeIDs, err.Error(), rid)
+		return result, err
+	}
+	hostAttrs := []string{}
+	for _, attr :=range attributes{
+		hostAttrs =append(hostAttrs, attr.PropertyName)
+	}
+
+	fields := []string{common.BKHostIDField,common.BKHostInnerIPField,common.BKCloudIDField, common.BKHostNameField}
+	fields = append(fields, hostAttrs...)
+
 	hosts := make([]metadata.HostMapStr, 0)
-	if err := mongodb.Client().Table(common.BKTableNameBaseHost).Find(hostFilter).All(kit.Ctx, &hosts); err != nil {
+	// get all hosts data
+	if err := mongodb.Client().Table(common.BKTableNameBaseHost).Find(hostFilter).Fields(fields...).All(kit.Ctx, &hosts); err != nil {
 		blog.ErrorJSON("GenerateApplyPlan failed, list hosts failed, filter: %s, err: %s, rid: %s", hostFilter, err.Error(), rid)
 		return result, kit.CCError.CCError(common.CCErrCommDBSelectFailed)
 	}
@@ -88,18 +107,6 @@ func (p *hostApplyRule) GenerateApplyPlan(kit *rest.Kit, bizID int64, option met
 	cloudMap := make(map[int64]metadata.CloudInst)
 	for _, item := range clouds {
 		cloudMap[item.CloudID] = item
-	}
-
-	// get attributes
-	attributeIDs := make([]int64, 0)
-	for _, item := range option.Rules {
-		attributeIDs = append(attributeIDs, item.AttributeID)
-	}
-	attributes, err := p.listHostAttributes(kit, bizID, attributeIDs...)
-	if err != nil {
-		blog.ErrorJSON("GenerateApplyPlan failed, listHostAttributes failed, attributeIDs: %s, err: %s, rid: %s",
-			attributeIDs, err.Error(), rid)
-		return result, err
 	}
 
 	// compute apply plan one by one

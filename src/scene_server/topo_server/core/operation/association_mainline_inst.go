@@ -13,10 +13,6 @@
 package operation
 
 import (
-	"fmt"
-	"io"
-	"regexp"
-
 	"configcenter/src/common"
 	"configcenter/src/common/blog"
 	"configcenter/src/common/condition"
@@ -26,6 +22,9 @@ import (
 	"configcenter/src/common/util"
 	"configcenter/src/scene_server/topo_server/core/inst"
 	"configcenter/src/scene_server/topo_server/core/model"
+	"fmt"
+	"io"
+	"regexp"
 )
 
 // checkInstNameRepeat 检查如果将 currentInsts 都删除之后，拥有共同父节点的孩子结点会不会出现名字冲突
@@ -247,7 +246,6 @@ func (assoc *association) SearchMainlineAssociationInstTopo(kit *rest.Kit, objID
 	for _, object := range objects {
 		objectNameMap[object.GetObjectID()] = object.Object().ObjectName
 	}
-
 	// traverse and fill instance topology data
 	results := make([]*metadata.TopoInstRst, 0)
 	var parents []*metadata.TopoInstRst

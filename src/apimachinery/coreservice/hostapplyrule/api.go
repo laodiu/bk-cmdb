@@ -13,12 +13,11 @@
 package hostapplyrule
 
 import (
-	"context"
-	"net/http"
-
 	"configcenter/src/common/blog"
 	"configcenter/src/common/errors"
 	"configcenter/src/common/metadata"
+	"context"
+	"net/http"
 )
 
 func (p *hostApplyRule) CreateHostApplyRule(ctx context.Context, header http.Header, bizID int64, option metadata.CreateHostApplyRuleOption) (metadata.HostApplyRule, errors.CCErrorCoder) {
@@ -174,7 +173,6 @@ func (p *hostApplyRule) GenerateApplyPlan(ctx context.Context, header http.Heade
 		metadata.BaseResp
 		Data metadata.HostApplyPlanResult `json:"data"`
 	}{}
-
 	err := p.client.Post().
 		WithContext(ctx).
 		Body(option).
@@ -182,7 +180,6 @@ func (p *hostApplyRule) GenerateApplyPlan(ctx context.Context, header http.Heade
 		WithHeaders(header).
 		Do().
 		Into(&ret)
-
 	if err != nil {
 		blog.Errorf("GenerateApplyPlan failed, http request failed, err: %+v", err)
 		return ret.Data, errors.CCHttpError

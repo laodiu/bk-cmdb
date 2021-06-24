@@ -432,15 +432,16 @@ def update_start_script(rd_server, server_ports, enable_auth, log_level, registe
 
 def main(argv):
     db_name = 'cmdb'
-    rd_server = ''
-    redis_ip = ''
+    rd_server = '127.0.0.1:2181'
+    redis_ip = '127.0.0.1'
     redis_port = 6379
-    redis_pass = ''
+    redis_pass = 'cc'
     sentinel_pass = ''
-    mongo_ip = ''
+    mongo_ip = '127.0.0.1'
     mongo_port = 27017
-    mongo_user = ''
-    mongo_pass = ''
+    mongo_user = 'cc'
+    mongo_pass = 'cc'
+    mechanism="SCRAM-SHA-1"
     cc_url = ''
     paas_url = 'http://127.0.0.1'
     auth = {
@@ -535,13 +536,12 @@ def main(argv):
       --database           cmdb \\
       --redis_ip           127.0.0.1 \\
       --redis_port         6379 \\
-      --redis_pass         1111 \\
-      --sentinel_pass      2222 \\
+      --redis_pass         cc \\
       --mongo_ip           127.0.0.1 \\
       --mongo_port         27017 \\
       --mongo_user         cc \\
       --mongo_pass         cc \\
-      --rs_name            rs0 \\
+      --mechanism          SCRAM-SHA-1 \\
       --blueking_cmdb_url  http://127.0.0.1:8080/ \\
       --blueking_paas_url  http://paas.domain.com \\
       --listen_port        8080 \\
@@ -553,9 +553,6 @@ def main(argv):
       --auth_sync_workers  1 \\
       --auth_sync_interval_minutes  45 \\
       --full_text_search   off \\
-      --es_url             http://127.0.0.1:9200 \\
-      --es_user            cc \\
-      --es_pass            cc \\
       --log_level          3 \\
       --register_ip        cmdb.domain.com \\
       --user_info          user1:password1,user2:password2
