@@ -186,7 +186,7 @@
         return `cmdb-form-${type}`
       },
       getPropertyEditStatus(property) {
-        const uneditable = ['bk_func_name', 'bk_process_name'].includes(property.bk_property_id) && !this.isCreatedService
+        const uneditable = ['bk_func_name'].includes(property.bk_property_id) && !this.isCreatedService
         return this.type === 'update' && uneditable
       },
       changedValues() {
@@ -224,7 +224,7 @@
             }
           }
         })
-        this.values = Object.assign({}, this.values, restValues, this.inst)
+        this.values = Object.assign({}, this.values, restValues, this.$tools.clone(this.inst))
         const timer = setTimeout(() => {
           this.refrenceValues = this.$tools.clone(this.values)
           clearTimeout(timer)
