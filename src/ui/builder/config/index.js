@@ -18,7 +18,7 @@ process.CMDB_CONFIG = config
 const dev = {
   // custom config
   config: Object.assign({}, config, {
-    API_URL: JSON.stringify('http://192.168.137.1:9090/proxy/'),
+    API_URL: JSON.stringify('http://localhost:9090/proxy/'),
     API_VERSION: JSON.stringify('v3'),
     API_LOGIN: JSON.stringify(''),
     AGENT_URL: JSON.stringify(''),
@@ -47,7 +47,7 @@ const dev = {
     }
   },
   // Various Dev Server settings
-  host: '192.168.137.1', // can be overwritten by process.env.HOST
+  host: 'localhost', // can be overwritten by process.env.HOST
   port: 9090, // can be overwritten by process.env.PORT, if port is in use, a free one will be determined
   autoOpenBrowser: true,
   errorOverlay: true,
