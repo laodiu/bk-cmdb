@@ -413,7 +413,7 @@ func (assoc *association) SearchTopoNodeHostAndServiceInstCount(kit *rest.Kit, i
 	}
 
 	results := make([]*metadata.TopoInstNodeHostAndServiceInstCount, 0)
-	// handle set host number and service instance number
+	// handle set host number and service instance count
 	if len(setIDs) > 0 {
 		listSetRelationOption := &metadata.HostModuleRelationRequest{
 			SetIDArr: setIDs,
@@ -450,7 +450,7 @@ func (assoc *association) SearchTopoNodeHostAndServiceInstCount(kit *rest.Kit, i
 		}
 	}
 
-	// handle module host number and service instance number
+	// handle module host number and service instance count
 	if len(moduleIDs) > 0 {
 		listModuleRelationOption := &metadata.HostModuleRelationRequest{
 			ModuleIDArr: moduleIDs,
@@ -480,6 +480,7 @@ func (assoc *association) SearchTopoNodeHostAndServiceInstCount(kit *rest.Kit, i
 			results = append(results, topoNodeServiceInstCount)
 		}
 	}
+
 	// handle biz host and service instance count
 	if bizID > 0 {
 		listBizRelationOption := &metadata.HostModuleRelationRequest{
