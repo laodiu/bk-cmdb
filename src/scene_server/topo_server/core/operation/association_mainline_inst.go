@@ -395,7 +395,6 @@ func (assoc *association) SearchTopoNodeHostAndServiceInstCount(kit *rest.Kit, i
 			customLevels[obj.InstID] = obj.ObjID
 		}
 	}
-
 	option := &metadata.ListServiceInstanceOption{
 		BusinessID: instID,
 		Page: metadata.BasePage{
