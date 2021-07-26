@@ -44,6 +44,7 @@ func (p *common) GetDistinctField(ctx context.Context, h http.Header, option *me
 	return ret.Data, nil
 }
 
+// GetDistinctCount 根据条件获取指定表中满足条件数据的数量
 func (p *common) GetDistinctCount(ctx context.Context, h http.Header, option *metadata.DistinctFieldOption) (int64,
 	errors.CCErrorCoder) {
 	ret := new(metadata.ArrayResponse)

@@ -43,6 +43,7 @@ func (c *commonOperation) GetDistinctField(kit *rest.Kit, option *metadata.Disti
 	return ret, nil
 }
 
+// GetDistinctCount 根据条件获取指定表中满足条件数据的数量
 func (c *commonOperation) GetDistinctCount(kit *rest.Kit, option *metadata.DistinctFieldOption) ([]interface{},
 	errors.CCErrorCoder) {
 	ret, err := mongodb.Client().Table(option.TableName).Distinct(kit.Ctx, option.Field, option.Filter)

@@ -419,6 +419,7 @@ type TopoInstRst struct {
 	Child    []*TopoInstRst `json:"child"`
 }
 
+// TopoNodeHostAndSerInstCount topo节点主机/服务实例数量
 type TopoNodeHostAndSerInstCount struct {
 	ObjID                string `json:"bk_obj_id"`
 	InstID               int64  `json:"bk_inst_id"`
@@ -426,10 +427,12 @@ type TopoNodeHostAndSerInstCount struct {
 	ServiceInstanceCount int64  `json:"service_instance_count"`
 }
 
+// HostAndSerInstCountOption 获取主机/服务实例查询参数结构
 type HostAndSerInstCountOption struct {
 	Condition []Condition `json:"condition"`
 }
 
+// Condition 获取主机/服务实例入参条件
 type Condition struct {
 	ObjID  string `json:"bk_obj_id"`
 	InstID int64  `json:"bk_inst_id"`
