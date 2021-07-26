@@ -432,6 +432,7 @@ func (assoc *association) TopoNodeHostAndSerInstCount(kit *rest.Kit, instID int6
 					common.BKSetIDField, setArr, kit.Rid)
 				return nil, err
 			}
+
 			topoNodeHostCount := &metadata.TopoNodeHostAndSerInstCount{
 				ObjID:     common.BKInnerObjIDSet,
 				InstID:    setID,
@@ -461,6 +462,7 @@ func (assoc *association) TopoNodeHostAndSerInstCount(kit *rest.Kit, instID int6
 					common.BKModuleIDField, moduleArr, kit.Rid)
 				return nil, err
 			}
+
 			topoNodeHostCount := &metadata.TopoNodeHostAndSerInstCount{
 				ObjID:     common.BKInnerObjIDModule,
 				InstID:    moduleID,
@@ -483,6 +485,7 @@ func (assoc *association) TopoNodeHostAndSerInstCount(kit *rest.Kit, instID int6
 				common.BKAppIDField, bizArr, kit.Rid)
 			return nil, err
 		}
+
 		topoNodeBizHostCount := &metadata.TopoNodeHostAndSerInstCount{
 			ObjID:                common.BKInnerObjIDApp,
 			InstID:               bizID,
@@ -515,6 +518,7 @@ func (assoc *association) TopoNodeHostAndSerInstCount(kit *rest.Kit, instID int6
 			blog.Errorf("get set module rel map failed, err: %s, rid: %s", e.Error(), kit.Rid)
 			return nil, e
 		}
+
 		moduleIDs := make([]int64, 0)
 		for _, moduleSlice := range setRelModuleMap {
 			moduleIDs = append(moduleIDs, moduleSlice...)
@@ -524,6 +528,7 @@ func (assoc *association) TopoNodeHostAndSerInstCount(kit *rest.Kit, instID int6
 		for _, moduleID := range moduleIDs {
 			serviceInstanceCount += moduleServiceInstanceCount[moduleID]
 		}
+
 		topoNodeCount := &metadata.TopoNodeHostAndSerInstCount{
 			ObjID:                objID,
 			InstID:               instID,
