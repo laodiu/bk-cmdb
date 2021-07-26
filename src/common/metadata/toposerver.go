@@ -141,7 +141,7 @@ type SearchBriefBizTopoResult struct {
 	Data     []*SetTopo
 }
 
-type GetTopoNodeHostAndServiceInstCountResult struct {
+type GetHostAndSerInstCountResult struct {
 	BaseResp `json:",inline"`
 	Data     []*TopoNodeCount
 }

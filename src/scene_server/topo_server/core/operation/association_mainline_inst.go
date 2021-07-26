@@ -378,20 +378,21 @@ func (assoc *association) SearchMainlineAssociationInstTopo(kit *rest.Kit, objID
 	return results, nil
 }
 
-func (assoc *association) SearchTopoNodeHostAndServiceInstCount(kit *rest.Kit, instID int64,
-	input *metadata.SearchBizTopoNodeHostAndServiceInstCountOption) ([]*metadata.TopoInstNodeHostAndServiceInstCount, errors.CCError) {
+func (assoc *association) TopoNodeHostAndSerInstCount(kit *rest.Kit, instID int64,
+	input *metadata.HostAndSerInstCountOption) ([]*metadata.TopoNodeHostAndSerInstCount, errors.CCError) {
 	var bizID int64
 	setIDs := make([]int64, 0)
 	moduleIDs := make([]int64, 0)
 	customLevels := make(map[int64]string, 0)
 	for _, obj := range input.Condition {
-		if obj.ObjID == common.BKInnerObjIDSet {
+		switch obj.ObjID {
+		case common.BKInnerObjIDSet:
 			setIDs = append(setIDs, obj.InstID)
-		} else if obj.ObjID == common.BKInnerObjIDModule {
+		case common.BKInnerObjIDModule:
 			moduleIDs = append(moduleIDs, obj.InstID)
-		} else if obj.ObjID == common.BKInnerObjIDApp {
+		case common.BKInnerObjIDApp:
 			bizID = obj.InstID
-		} else {
+		default:
 			customLevels[obj.InstID] = obj.ObjID
 		}
 	}
@@ -412,34 +413,39 @@ func (assoc *association) SearchTopoNodeHostAndServiceInstCount(kit *rest.Kit, i
 		moduleServiceInstanceCount[serviceInstance.ModuleID]++
 	}
 
-	results := make([]*metadata.TopoInstNodeHostAndServiceInstCount, 0)
+	results := make([]*metadata.TopoNodeHostAndSerInstCount, 0)
 	// handle set host number and service instance count
 	if len(setIDs) > 0 {
-		listSetRelationOption := &metadata.HostModuleRelationRequest{
-			SetIDArr: setIDs,
-			Fields:   []string{common.BKAppIDField, common.BKSetIDField, common.BKModuleIDField, common.BKHostIDField},
-		}
-		setRelationHost, e := assoc.clientSet.CoreService().Host().GetHostModuleRelation(kit.Ctx, kit.Header, listSetRelationOption)
+		setRelModuleMap, e := assoc.getSetRelationModule(kit, setIDs)
 		if e != nil {
-			blog.Errorf("SearchTopoNodeHostAndServiceInstCount failed, list host modules failed, option: %+v, err: %s, rid: %s",
-				listSetRelationOption, e.Error(), kit.Rid)
+			blog.Errorf("get set module rel map failed, err: %s, rid: %s", e.Error(), kit.Rid)
 			return nil, e
 		}
-		setRelMap := make(map[int64]int64, 0)
-		setRelModuleMap := make(map[int64][]int64, 0)
-		for _, setRel := range setRelationHost.Data.Info {
-			setRelMap[setRel.SetID]++
-			setRelModuleMap[setRel.SetID] = append(setRelModuleMap[setRel.SetID], setRel.ModuleID)
-		}
-		topoNodeHostCounts := make([]*metadata.TopoInstNodeHostAndServiceInstCount, 0)
+
+		topoNodeHostCounts := make([]*metadata.TopoNodeHostAndSerInstCount, 0)
 		for _, setID := range setIDs {
-			topoNodeHostCount := &metadata.TopoInstNodeHostAndServiceInstCount{
+			filter := make(map[string]interface{}, 0)
+			cond := make(map[string]interface{}, 0)
+			cond[common.BKDBIN] = []int64{setID}
+			filter[common.BKSetIDField] = cond
+			opt := &metadata.DistinctFieldOption{
+				TableName: common.BKTableNameModuleHostConfig,
+				Field:     common.BKHostIDField,
+				Filter:    filter,
+			}
+			count, err := assoc.clientSet.CoreService().Common().GetDistinctCount(kit.Ctx, kit.Header, opt)
+			if err != nil {
+				blog.Errorf("find hosts count by set id failed, err: %v, set id: %s, rid: %s", err, setID, kit.Rid)
+				return nil, err
+			}
+			topoNodeHostCount := &metadata.TopoNodeHostAndSerInstCount{
 				ObjID:     common.BKInnerObjIDSet,
 				InstID:    setID,
-				HostCount: setRelMap[setID],
+				HostCount: count,
 			}
 			topoNodeHostCounts = append(topoNodeHostCounts, topoNodeHostCount)
 		}
+
 		for _, topoNodeServiceInstCount := range topoNodeHostCounts {
 			moduleIDs := setRelModuleMap[topoNodeServiceInstCount.InstID]
 			moduleIDs = util.IntArrayUnique(moduleIDs)
@@ -452,26 +458,27 @@ func (assoc *association) SearchTopoNodeHostAndServiceInstCount(kit *rest.Kit, i
 
 	// handle module host number and service instance count
 	if len(moduleIDs) > 0 {
-		listModuleRelationOption := &metadata.HostModuleRelationRequest{
-			ModuleIDArr: moduleIDs,
-			Fields:      []string{common.BKAppIDField, common.BKSetIDField, common.BKModuleIDField, common.BKHostIDField},
-		}
-		moduleRelationHost, e := assoc.clientSet.CoreService().Host().GetHostModuleRelation(kit.Ctx, kit.Header, listModuleRelationOption)
-		if e != nil {
-			blog.Errorf("SearchTopoNodeHostAndServiceInstCount failed, list host modules failed, option: %+v, err: %s, rid: %s",
-				listModuleRelationOption, e.Error(), kit.Rid)
-			return nil, e
-		}
-		moduleRelMap := make(map[int64]int64, 0)
-		for _, moduleRel := range moduleRelationHost.Data.Info {
-			moduleRelMap[moduleRel.ModuleID]++
-		}
-		topoNodeHostCounts := make([]*metadata.TopoInstNodeHostAndServiceInstCount, 0)
+		topoNodeHostCounts := make([]*metadata.TopoNodeHostAndSerInstCount, 0)
 		for _, moduleID := range moduleIDs {
-			topoNodeHostCount := &metadata.TopoInstNodeHostAndServiceInstCount{
+			filter := make(map[string]interface{}, 0)
+			cond := make(map[string]interface{}, 0)
+			cond[common.BKDBIN] = []int64{moduleID}
+			filter[common.BKModuleIDField] = cond
+			opt := &metadata.DistinctFieldOption{
+				TableName: common.BKTableNameModuleHostConfig,
+				Field:     common.BKHostIDField,
+				Filter:    filter,
+			}
+			count, err := assoc.clientSet.CoreService().Common().GetDistinctCount(kit.Ctx, kit.Header, opt)
+			if err != nil {
+				blog.Errorf("find hosts count by module id failed, err: %v, module id: %s, rid: %s", err,
+					moduleID, kit.Rid)
+				return nil, err
+			}
+			topoNodeHostCount := &metadata.TopoNodeHostAndSerInstCount{
 				ObjID:     common.BKInnerObjIDModule,
 				InstID:    moduleID,
-				HostCount: moduleRelMap[moduleID],
+				HostCount: count,
 			}
 			topoNodeHostCounts = append(topoNodeHostCounts, topoNodeHostCount)
 		}
@@ -483,21 +490,24 @@ func (assoc *association) SearchTopoNodeHostAndServiceInstCount(kit *rest.Kit, i
 
 	// handle biz host and service instance count
 	if bizID > 0 {
-		listBizRelationOption := &metadata.HostModuleRelationRequest{
-			ApplicationID: bizID,
-			Fields:        []string{common.BKAppIDField, common.BKSetIDField, common.BKModuleIDField, common.BKHostIDField},
+		filter := make(map[string]interface{}, 0)
+		cond := make(map[string]interface{}, 0)
+		cond[common.BKDBIN] = []int64{bizID}
+		filter[common.BKAppIDField] = cond
+		opt := &metadata.DistinctFieldOption{
+			TableName: common.BKTableNameModuleHostConfig,
+			Field:     common.BKHostIDField,
+			Filter:    filter,
 		}
-		hostBizRelations, e := assoc.clientSet.CoreService().Host().GetHostModuleRelation(kit.Ctx, kit.Header,
-			listBizRelationOption)
-		if e != nil {
-			blog.Errorf("get host module relation failed, list host modules failed, option: %+v, err: %s, rid: %s",
-				listBizRelationOption, e.Error(), kit.Rid)
-			return nil, e
+		count, err := assoc.clientSet.CoreService().Common().GetDistinctCount(kit.Ctx, kit.Header, opt)
+		if err != nil {
+			blog.Errorf("find hosts count by biz id failed, err: %v, biz id: %s, rid: %s", err, bizID, kit.Rid)
+			return nil, err
 		}
-		topoNodeBizHostCount := &metadata.TopoInstNodeHostAndServiceInstCount{
+		topoNodeBizHostCount := &metadata.TopoNodeHostAndSerInstCount{
 			ObjID:                common.BKInnerObjIDApp,
 			InstID:               bizID,
-			HostCount:            hostBizRelations.Data.Count,
+			HostCount:            count,
 			ServiceInstanceCount: int64(serviceInstances.Count),
 		}
 		results = append(results, topoNodeBizHostCount)
@@ -512,29 +522,42 @@ func (assoc *association) SearchTopoNodeHostAndServiceInstCount(kit *rest.Kit, i
 			return nil, err
 		}
 
-		listSetRelationOption := &metadata.HostModuleRelationRequest{
-			SetIDArr: setIDArr,
-			Fields:   []string{common.BKAppIDField, common.BKSetIDField, common.BKModuleIDField, common.BKHostIDField},
+		// get host count by set ids
+		filter := make(map[string]interface{}, 0)
+		cond := make(map[string]interface{}, 0)
+		cond[common.BKDBIN] = setIDArr
+		filter[common.BKSetIDField] = cond
+		opt := &metadata.DistinctFieldOption{
+			TableName: common.BKTableNameModuleHostConfig,
+			Field:     common.BKHostIDField,
+			Filter:    filter,
 		}
-		setRelationHost, e := assoc.clientSet.CoreService().Host().GetHostModuleRelation(kit.Ctx, kit.Header, listSetRelationOption)
+		hostCount, err := assoc.clientSet.CoreService().Common().GetDistinctCount(kit.Ctx, kit.Header, opt)
+		if err != nil {
+			blog.Errorf("find hosts count by set ids failed, err: %v, set ids: %s, rid: %s", err, setIDArr,
+				kit.Rid)
+			return nil, err
+		}
+
+		// get service instance count by set ids
+		setRelModuleMap, e := assoc.getSetRelationModule(kit, setIDs)
 		if e != nil {
-			blog.Errorf("get set relation host failed, list host modules failed, option: %+v, err: %s, rid: %s",
-				listSetRelationOption, e.Error(), kit.Rid)
+			blog.Errorf("get set module rel map failed, err: %s, rid: %s", e.Error(), kit.Rid)
 			return nil, e
 		}
-		var moduleIDs []int64
-		var serviceInstanceCount int64
-		for _, setRel := range setRelationHost.Data.Info {
-			moduleIDs = append(moduleIDs, setRel.ModuleID)
-			moduleIDs = util.IntArrayUnique(moduleIDs)
+		moduleIDs := make([]int64, 0)
+		for _, moduleSlice := range setRelModuleMap {
+			moduleIDs = append(moduleIDs, moduleSlice...)
 		}
+		moduleIDs = util.IntArrayUnique(moduleIDs)
+		var serviceInstanceCount int64
 		for _, moduleID := range moduleIDs {
 			serviceInstanceCount += moduleServiceInstanceCount[moduleID]
 		}
-		topoNodeCount := &metadata.TopoInstNodeHostAndServiceInstCount{
+		topoNodeCount := &metadata.TopoNodeHostAndSerInstCount{
 			ObjID:                objID,
 			InstID:               instID,
-			HostCount:            setRelationHost.Data.Count,
+			HostCount:            hostCount,
 			ServiceInstanceCount: serviceInstanceCount,
 		}
 		results = append(results, topoNodeCount)
@@ -551,15 +574,17 @@ func (assoc *association) getSetIDsByTopo(kit *rest.Kit, objID string, instIDs [
 	}
 
 	// get mainline association, generate map of object and its child
-	asstRes, err := assoc.clientSet.CoreService().Association().ReadModelAssociation(kit.Ctx, kit.Header, &metadata.QueryCondition{
-		Condition: map[string]interface{}{common.AssociationKindIDField: common.AssociationKindMainline}})
+	asstRes, err := assoc.clientSet.CoreService().Association().ReadModelAssociation(kit.Ctx, kit.Header,
+		&metadata.QueryCondition{
+			Condition: map[string]interface{}{common.AssociationKindIDField: common.AssociationKindMainline}})
 	if err != nil {
 		blog.Errorf("get set IDs by topo failed, get mainline association err: %s, rid: %s", err.Error(), kit.Rid)
 		return nil, err
 	}
 
 	if !asstRes.Result {
-		blog.Errorf("get set IDs by topo failed, get mainline association err: %s, rid: %s", asstRes.ErrMsg, kit.Rid)
+		blog.Errorf("get set IDs by topo failed, get mainline association err: %s, rid: %s", asstRes.ErrMsg,
+			kit.Rid)
 		return nil, asstRes.CCError()
 	}
 
@@ -591,7 +616,8 @@ func (assoc *association) getSetIDsByTopo(kit *rest.Kit, objID string, instIDs [
 		}
 
 		if !instRes.Result {
-			blog.Errorf("get set IDs by topo failed, read instance err: %s, objID: %s, instIDs: %+v, rid: %s", instRes.ErrMsg, childObj, instIDs, kit.Rid)
+			blog.Errorf("get set IDs by topo failed, read instance err: %s, objID: %s, instIDs: %+v, rid: %s",
+				instRes.ErrMsg, childObj, instIDs, kit.Rid)
 			return nil, kit.CCError.New(instRes.Code, instRes.ErrMsg)
 		}
 
@@ -603,7 +629,8 @@ func (assoc *association) getSetIDsByTopo(kit *rest.Kit, objID string, instIDs [
 		for index, insts := range instRes.Data.Info {
 			id, err := insts.Int64(idField)
 			if err != nil {
-				blog.Errorf("get set IDs by topo failed, parse inst id err: %s, inst: %#v, rid: %s", err.Error(), insts, kit.Rid)
+				blog.Errorf("get set IDs by topo failed, parse inst id err: %s, inst: %#v, rid: %s", err.Error(),
+					insts, kit.Rid)
 				return nil, err
 			}
 			instIDs[index] = id
@@ -616,6 +643,39 @@ func (assoc *association) getSetIDsByTopo(kit *rest.Kit, objID string, instIDs [
 	}
 
 	return instIDs, nil
+}
+
+func (assoc *association) getSetRelationModule(kit *rest.Kit, setIDs []int64) (map[int64][]int64, error) {
+	filter := make(map[string]interface{}, 0)
+	cond := make(map[string]interface{}, 0)
+	cond[common.BKDBIN] = setIDs
+	filter[common.BKSetIDField] = cond
+	queryCond := &metadata.QueryCondition{
+		Fields:    []string{common.BKSetIDField, common.BKModuleIDField},
+		Condition: filter,
+	}
+	resp, _ := assoc.clientSet.CoreService().Instance().ReadInstance(kit.Ctx, kit.Header, common.BKInnerObjIDModule,
+		queryCond)
+	setRelModuleMap := make(map[int64][]int64, 0)
+	for _, mapStr := range resp.Data.Info {
+		setID, err := mapStr.Int64(common.BKSetIDField)
+		if err != nil {
+			blog.Errorf("failed to parse the interface type to int64 type, error info is %s , rid: %s",
+				err.Error(), kit.Rid)
+			return nil, err
+		}
+
+		moduleID, err := mapStr.Int64(common.BKModuleIDField)
+		if err != nil {
+			blog.Errorf("failed to parse the interface type to int64 type, error info is %s , rid: %s",
+				err.Error(), kit.Rid)
+			return nil, err
+		}
+
+		setRelModuleMap[setID] = append(setRelModuleMap[setID], moduleID)
+	}
+
+	return setRelModuleMap, nil
 }
 
 func (assoc *association) fillStatistics(kit *rest.Kit, bizID int64, moduleIDs []int64, topoInsts []*metadata.TopoInstRst) errors.CCError {

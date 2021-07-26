@@ -419,14 +419,14 @@ type TopoInstRst struct {
 	Child    []*TopoInstRst `json:"child"`
 }
 
-type TopoInstNodeHostAndServiceInstCount struct {
+type TopoNodeHostAndSerInstCount struct {
 	ObjID                string `json:"bk_obj_id"`
 	InstID               int64  `json:"bk_inst_id"`
 	HostCount            int64  `json:"host_count"`
 	ServiceInstanceCount int64  `json:"service_instance_count"`
 }
 
-type SearchBizTopoNodeHostAndServiceInstCountOption struct {
+type HostAndSerInstCountOption struct {
 	Condition []Condition `json:"condition"`
 }
 

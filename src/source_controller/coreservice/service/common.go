@@ -39,3 +39,26 @@ func (s *coreService) GetDistinctField(ctx *rest.Contexts) {
 
 	ctx.RespEntity(ret)
 }
+
+func (s *coreService) GetDistinctCount(ctx *rest.Contexts) {
+	option := new(metadata.DistinctFieldOption)
+	if err := ctx.DecodeInto(option); err != nil {
+		ctx.RespAutoError(err)
+		return
+	}
+
+	rawErr := option.Validate()
+	if rawErr.ErrCode != 0 {
+		ctx.RespAutoError(rawErr.ToCCError(ctx.Kit.CCError))
+		return
+	}
+
+	ret, err := s.core.CommonOperation().GetDistinctCount(ctx.Kit, option)
+
+	if err != nil {
+		ctx.RespAutoError(err)
+		return
+	}
+
+	ctx.RespEntity(ret)
+}
