@@ -263,6 +263,9 @@
         const clipboardList = FilterStore.header.slice()
         clipboardList.splice(1, 0, IPWithCloud)
         return clipboardList
+      },
+      tableHeaderPropertyIdList() {
+        return this.$parent.tableHeader.map(item => item.bk_property_id)
       }
     },
     methods: {
@@ -311,6 +314,7 @@
           bk_biz_id: this.bizId,
           bk_obj_id: 'host',
           presetFields: ['bk_cloud_id', 'bk_host_innerip'],
+          defaultSelectedFields: this.tableHeaderPropertyIdList,
           count: this.selection.length,
           submit: (state, task) => {
             const { fields, exportRelation  } = state
@@ -343,6 +347,7 @@
           bk_biz_id: this.bizId,
           bk_obj_id: 'host',
           presetFields: ['bk_cloud_id', 'bk_host_innerip'],
+          defaultSelectedFields: this.tableHeaderPropertyIdList,
           count: this.count,
           submit: (state, task) => {
             const { fields, exportRelation  } = state
@@ -417,22 +422,25 @@
       },
       handleDialogConfirm() {
         if (this.dialog.component === HostSelector.name) {
+          // 最新的逻辑中新增主机等于转移主机到当前模块，跳转到转移主机页面指定type=add
           // eslint-disable-next-line prefer-rest-params
           this.gotoTransferPage(...arguments)
         }
       },
       gotoTransferPage(selected) {
+        const query = {
+          sourceModel: this.selectedNode.data.bk_obj_id,
+          sourceId: this.selectedNode.data.bk_inst_id,
+          targetModules: this.selectedNode.data.bk_inst_id,
+          resources: selected.map(item => item.host.bk_host_id).join(','),
+          node: this.selectedNode.id
+        }
         this.$routerActions.redirect({
-          name: 'createServiceInstance',
+          name: MENU_BUSINESS_TRANSFER_HOST,
           params: {
-            setId: this.selectedNode.parent.data.bk_inst_id,
-            moduleId: this.selectedNode.data.bk_inst_id
+            type: 'add'
           },
-          query: {
-            resources: selected.map(item => item.host.bk_host_id).join(','),
-            title: this.selectedNode.data.bk_inst_name,
-            node: this.selectedNode.id
-          },
+          query,
           history: true
         })
       },

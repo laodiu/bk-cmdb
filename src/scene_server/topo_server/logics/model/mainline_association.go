@@ -165,8 +165,7 @@ func (assoc *association) DeleteMainlineAssociation(kit *rest.Kit, targetObjID s
 
 	// object的删除函数通过object的id进行删除，需要在这里查一次object的id
 	objIDCond := mapstr.MapStr{common.BKObjIDField: targetObjID}
-	//delete objects
-	if err = assoc.obj.DeleteObject(kit, objIDCond, false); err != nil {
+	if _, err = assoc.obj.DeleteObject(kit, objIDCond, false); err != nil {
 		blog.Errorf("failed to delete the object(%s), err: %v, rid: %s", targetObjID, err, kit.Rid)
 		return err
 	}

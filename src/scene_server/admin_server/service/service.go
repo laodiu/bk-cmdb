@@ -28,6 +28,7 @@ import (
 	"configcenter/src/common/webservice/restfulservice"
 	"configcenter/src/scene_server/admin_server/app/options"
 	"configcenter/src/scene_server/admin_server/configures"
+	"configcenter/src/scene_server/admin_server/logics"
 	"configcenter/src/storage/dal"
 	"configcenter/src/storage/dal/redis"
 	"configcenter/src/thirdparty/monitor"
@@ -38,12 +39,13 @@ import (
 
 type Service struct {
 	*backbone.Engine
+	*logics.Logics
 	db           dal.RDB
 	watchDB      dal.RDB
 	cache        redis.Client
 	ctx          context.Context
 	Config       options.Config
-	iam          *iam.Iam
+	iam          *iam.IAM
 	ConfigCenter *configures.ConfCenter
 }
 
@@ -65,7 +67,7 @@ func (s *Service) SetCache(cache redis.Client) {
 	s.cache = cache
 }
 
-func (s *Service) SetIam(iam *iam.Iam) {
+func (s *Service) SetIam(iam *iam.IAM) {
 	s.iam = iam
 }
 
@@ -90,6 +92,7 @@ func (s *Service) WebService() *restful.Container {
 	api.Route(api.POST("/migrate/specify/version/{distribution}/{ownerID}").To(s.migrateSpecifyVersion))
 	api.Route(api.POST("/migrate/config/refresh").To(s.refreshConfig))
 	api.Route(api.POST("/migrate/dataid").To(s.migrateDataID))
+	api.Route(api.POST("/delete/auditlog").To(s.DeleteAuditLog))
 	api.Route(api.POST("/migrate/sync/db/index").To(s.RunSyncDBIndex))
 	api.Route(api.GET("/healthz").To(s.Healthz))
 	api.Route(api.GET("/monitor_healthz").To(s.MonitorHealth))

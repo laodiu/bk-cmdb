@@ -32,7 +32,7 @@ type ObjectOperationInterface interface {
 	// CreateObject create common object
 	CreateObject(kit *rest.Kit, isMainline bool, data mapstr.MapStr) (*metadata.Object, error)
 	// DeleteObject delete model by query condition
-	DeleteObject(kit *rest.Kit, cond mapstr.MapStr, needCheckInst bool) error
+	DeleteObject(kit *rest.Kit, cond mapstr.MapStr, needCheckInst bool) (*metadata.Object, error)
 	// FindObjectTopo search object topo by condition
 	FindObjectTopo(kit *rest.Kit, cond mapstr.MapStr) ([]metadata.ObjectTopo, error)
 	// FindSingleObject find a object by objectID
@@ -240,7 +240,7 @@ func (o *object) CreateObject(kit *rest.Kit, isMainline bool, data mapstr.MapStr
 }
 
 // DeleteObject delete model by query condition
-func (o *object) DeleteObject(kit *rest.Kit, cond mapstr.MapStr, needCheckInst bool) error {
+func (o *object) DeleteObject(kit *rest.Kit, cond mapstr.MapStr, needCheckInst bool) (*metadata.Object, error) {
 
 	// get model by conditon
 	query := &metadata.QueryCondition{
@@ -252,16 +252,16 @@ func (o *object) DeleteObject(kit *rest.Kit, cond mapstr.MapStr, needCheckInst b
 	objs, err := o.clientSet.CoreService().Model().ReadModel(kit.Ctx, kit.Header, query)
 	if err != nil {
 		blog.Errorf("failed to find objects by query(%#v), err: %v, rid: %s", query, err, kit.Rid)
-		return err
+		return nil, err
 	}
-	// shouldn't return 404 error here, legacy implements just ignore not found error
+	// shouldn't return nil, 404 error here, legacy implements just ignore not found error
 	if len(objs.Info) == 0 {
 		blog.V(3).Infof("object not found, rid: %s", kit.Rid)
-		return nil
+		return nil, nil
 	}
 
 	if len(objs.Info) > 1 {
-		return kit.CCError.CCError(common.CCErrCommGetMultipleObject)
+		return nil, kit.CCError.CCError(common.CCErrCommGetMultipleObject)
 	}
 
 	obj := objs.Info[0]
@@ -269,7 +269,7 @@ func (o *object) DeleteObject(kit *rest.Kit, cond mapstr.MapStr, needCheckInst b
 	// check whether it can be deleted
 	if needCheckInst {
 		if err = o.canDelete(kit, obj.ObjectID); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -280,24 +280,24 @@ func (o *object) DeleteObject(kit *rest.Kit, cond mapstr.MapStr, needCheckInst b
 	if err != nil {
 		blog.Errorf("generate audit log failed before delete object, objName: %s, err: %v, rid: %s",
 			obj.ObjectName, err, kit.Rid)
-		return err
+		return nil, err
 	}
 
 	// DeleteModelCascade 将会删除模型/模型属性/属性分组/唯一校验
 	_, err = o.clientSet.CoreService().Model().DeleteModelCascade(kit.Ctx, kit.Header, obj.ID)
 	if err != nil {
 		blog.Errorf("delete the object by the id(%d) failed, err: %v, rid: %s", obj.ID, err, kit.Rid)
-		return err
+		return nil, err
 	}
 
 	// save audit log.
 	if err = audit.SaveAuditLog(kit, *auditLog); err != nil {
 		blog.Errorf("delete object %s success, save audit log failed, err: %v, rid: %s", obj.ObjectName, err,
 			kit.Rid)
-		return err
+		return nil, err
 	}
 
-	return nil
+	return &obj, nil
 }
 
 // canDelete return nil only when:

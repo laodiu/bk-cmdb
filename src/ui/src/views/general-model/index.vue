@@ -12,8 +12,7 @@
         </cmdb-auth>
         <cmdb-auth class="fl mr10"
           :auth="[
-            { type: $OPERATION.C_INST, relation: [model.id] },
-            { type: $OPERATION.U_INST, relation: [model.id] }
+            { type: $OPERATION.C_INST, relation: [model.id] }
           ]">
           <bk-button slot-scope="{ disabled }"
             class="models-button"
@@ -65,6 +64,7 @@
           :is="`cmdb-search-${filterType}`"
           :placeholder="filterPlaceholder"
           :class="filterType"
+          :fuzzy="queryModeIsFuzzy"
           v-bind="filterComponentProps"
           v-model="filter.value"
           @change="handleFilterValueChange"
@@ -73,6 +73,7 @@
         </component>
         <bk-checkbox class="filter-exact" size="small"
           v-if="allowFuzzyQuery"
+          @change="onQueryModeChange"
           v-model="filter.fuzzy_query">
           {{$t('模糊')}}
         </bk-checkbox>
@@ -132,13 +133,13 @@
       :width="800"
       :before-close="handleSliderBeforeClose">
       <template slot="content" v-if="slider.contentShow">
-        <cmdb-form v-if="['update', 'create'].includes(attribute.type)"
+        <cmdb-form v-if="attribute.type === 'create'"
           ref="form"
           :properties="properties"
           :property-groups="propertyGroups"
           :inst="attribute.inst.edit"
           :type="attribute.type"
-          :save-auth="{ type: attribute.type === 'update' ? $OPERATION.U_INST : $OPERATION.C_INST }"
+          :save-auth="{ type: $OPERATION.C_INST, relation: [model.id] }"
           @on-submit="handleSave"
           @on-cancel="handleCancel">
         </cmdb-form>
@@ -147,6 +148,8 @@
           :uneditable-properties="['bk_inst_name']"
           :properties="properties"
           :property-groups="propertyGroups"
+          :save-auth="saveAuth"
+          :object-unique="objectUnique"
           @on-submit="handleMultipleSave"
           @on-cancel="handleMultipleCancel">
         </cmdb-form-multiple>
@@ -171,7 +174,7 @@
   import { mapState, mapGetters, mapActions } from 'vuex'
   import cmdbColumnsConfig from '@/components/columns-config/columns-config.vue'
   import cmdbImport from '@/components/import/import'
-  import { MENU_RESOURCE_INSTANCE_DETAILS } from '@/dictionary/menu-symbol'
+  import { MENU_RESOURCE_INSTANCE, MENU_RESOURCE_INSTANCE_DETAILS } from '@/dictionary/menu-symbol'
   import cmdbPropertySelector from '@/components/property-selector'
   import RouterQuery from '@/router/query'
   import Utils from '@/components/filters/utils'
@@ -203,6 +206,8 @@
             payload: {}
           }
         },
+        // 查询模式
+        queryModeIsFuzzy: false,
         filter: {
           field: '',
           value: '',
@@ -281,6 +286,12 @@
       },
       allowFuzzyQuery() {
         return ['singlechar', 'longchar'].includes(this.filterType)
+      },
+      saveAuth() {
+        return this.table.checked.map(instId => ({
+          type: this.$OPERATION.U_INST,
+          relation: [this.model.id, parseInt(instId, 10)]
+        }))
       }
     },
     watch: {
@@ -297,11 +308,13 @@
       },
       'filter.fuzzy_query'(fuzzy) {
         if (!this.allowFuzzyQuery) return
+
         if (fuzzy) {
           this.filter.value = ''
           this.filter.operator = '$regex'
           return
         }
+
         const defaultData = Utils.getDefaultData(this.filterProperty)
         this.filter.value = defaultData.value
         this.filter.operator = defaultData.operator
@@ -333,10 +346,11 @@
         filter = '',
         operator = '',
         fuzzy = false,
-        field = 'bk_inst_name'
+        field = 'bk_inst_name',
       }) => {
         this.filter.field = field
         this.filter.fuzzy_query = fuzzy.toString() === 'true'
+        this.queryModeIsFuzzy = Boolean(fuzzy)
         this.table.pagination.current = parseInt(page, 10)
         this.table.pagination.limit = parseInt(limit, 10)
         await this.$nextTick()
@@ -365,6 +379,9 @@
         'batchDeleteInst',
         'searchInstById'
       ]),
+      onQueryModeChange(val) {
+        this.queryModeIsFuzzy = val
+      },
       setDynamicBreadcrumbs() {
         this.$store.commit('setTitle', this.model.bk_obj_name)
       },
@@ -509,6 +526,11 @@
         })
       },
       getTableData() {
+        // 防止切换到子路由产生预期外的请求
+        if (this.$route.name !== MENU_RESOURCE_INSTANCE) {
+          return
+        }
+
         this.getInstList({ cancelPrevious: true, globalPermission: false }).then((data) => {
           if (data.count && !data.info.length) {
             RouterQuery.set({
@@ -587,10 +609,6 @@
           value: this.filter.value
         })
         return params
-      },
-      async handleEdit(item) {
-        this.attribute.inst.edit = item
-        this.attribute.type = 'update'
       },
       handleCreate() {
         this.attribute.type = 'create'
@@ -772,6 +790,7 @@
         useExport.default({
           title: this.$t('导出选中'),
           bk_obj_id: this.objId,
+          defaultSelectedFields: this.table.header.map(item => item.id),
           count: this.table.checked.length,
           submit: (state, task) => {
             const { fields, exportRelation  } = state

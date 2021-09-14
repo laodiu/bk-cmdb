@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"sync"
 
+	"configcenter/src/ac/iam"
 	"configcenter/src/ac/meta"
 	"configcenter/src/common"
 	"configcenter/src/common/errors"
@@ -187,7 +188,7 @@ func (ps *parseStream) getInstAssociation(objID string, cond mapstr.MapStr) (met
 	return asst.Info[0], nil
 }
 
-func (ps *parseStream) getInstanceTypeByObject(objID string) (meta.ResourceType, error) {
+func (ps *parseStream) getInstanceTypeByObject(objID string, ID int64) (meta.ResourceType, error) {
 	switch objID {
 	case common.BKInnerObjIDPlat:
 		return meta.CloudAreaInstance, nil
@@ -209,7 +210,7 @@ func (ps *parseStream) getInstanceTypeByObject(objID string) (meta.ResourceType,
 	if isMainline {
 		return meta.MainlineInstance, nil
 	}
-	return meta.ModelInstance, nil
+	return iam.GenCMDBDynamicResType(ID), nil
 }
 
 func (ps *parseStream) getBizIDByHostID(hostID int64) (int64, error) {
@@ -411,7 +412,7 @@ func (ps *parseStream) getResourcePoolDefaultDirID() (dirID int64, err error) {
 func (ps *parseStream) generateUpdateInstanceResource(model *metadata.Object, instID int64) (*meta.ResourceAttribute,
 	error) {
 
-	instanceType, err := ps.getInstanceTypeByObject(model.ObjectID)
+	instanceType, err := ps.getInstanceTypeByObject(model.ObjectID, model.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -500,15 +501,16 @@ func (ps *parseStream) generateUpdateInstanceResource(model *metadata.Object, in
 				Action: meta.Update,
 			},
 		}, nil
-	case meta.ModelInstance:
-		return &meta.ResourceAttribute{
-			Basic: meta.Basic{
-				Type:       instanceType,
-				Action:     meta.Update,
-				InstanceID: instID,
-			},
-			Layers: []meta.Item{{Type: meta.Model, InstanceID: model.ID}},
-		}, nil
+	default:
+		if iam.IsCMDBSysInstance(instanceType) {
+			return &meta.ResourceAttribute{
+				Basic: meta.Basic{
+					Type:       instanceType,
+					Action:     meta.Update,
+					InstanceID: instID,
+				},
+			}, nil
+		}
+		return nil, errors.New(common.CCErrCommParamsIsInvalid, fmt.Sprintf("instance type %s is invalid", instanceType))
 	}
-	return nil, errors.New(common.CCErrCommParamsIsInvalid, fmt.Sprintf("instance type %s is invalid", instanceType))
 }

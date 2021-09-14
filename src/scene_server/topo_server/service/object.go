@@ -22,6 +22,7 @@ import (
 	"configcenter/src/common"
 	"configcenter/src/common/auth"
 	"configcenter/src/common/blog"
+	"configcenter/src/common/condition"
 	"configcenter/src/common/http/rest"
 	"configcenter/src/common/mapstr"
 	"configcenter/src/common/metadata"
@@ -117,17 +118,17 @@ func (s *Service) CreateObject(ctx *rest.Contexts) {
 			return err
 		}
 
-		// register object resource creator action to iam
 		if auth.EnableAuthorize() {
-			iamInstance := metadata.IamInstanceWithCreator{
+			objects := []metadata.Object{*rsp}
+			iamInstances := []metadata.IamInstanceWithCreator{{
 				Type:    string(iam.SysModel),
 				ID:      strconv.FormatInt(rsp.ID, 10),
 				Name:    rsp.ObjectName,
 				Creator: ctx.Kit.User,
-			}
-			_, err = s.AuthManager.Authorizer.RegisterResourceCreatorAction(ctx.Kit.Ctx, ctx.Kit.Header, iamInstance)
-			if err != nil {
-				blog.Errorf("register created object to iam failed, err: %s, rid: %s", err, ctx.Kit.Rid)
+			}}
+			if err := s.AuthManager.CreateObjectOnIAM(ctx.Kit.Ctx, ctx.Kit.Header, objects, iamInstances); err != nil {
+				blog.ErrorJSON("create object on iam failed, objects: %s, iam instances: %s, err: %s, rid: %s",
+					objects, iamInstances, err, ctx.Kit.Rid)
 				return err
 			}
 		}
@@ -195,6 +196,33 @@ func (s *Service) UpdateObject(ctx *rest.Contexts) {
 		if err != nil {
 			return err
 		}
+
+		// sync the object name to IAM only if the object name is updated
+		if auth.EnableAuthorize() {
+			// judge whether the data contains object name
+			if _, ok := data[common.BKObjNameField]; !ok {
+				return nil
+			}
+
+			cond := condition.CreateCondition().Field(common.BKFieldID).Eq(id)
+			resp, err := s.Core.ObjectOperation().FindObject(ctx.Kit, cond)
+			if err != nil {
+				blog.ErrorJSON("find object failed, cond: %s, err: %s, rid: %s", cond, err, ctx.Kit.Rid)
+				return err
+			}
+			if len(resp) != 1 {
+				blog.ErrorJSON("find object failed, cond: %s, resp:%s, err: object count is wrong, rid: %s",
+					cond, resp, ctx.Kit.Rid)
+				return ctx.Kit.CCError.New(common.CCErrCommDBSelectFailed, "object count is wrong")
+			}
+
+			objects := []metadata.Object{resp[0].Object()}
+			if err := s.AuthManager.Viewer.UpdateView(ctx.Kit.Ctx, ctx.Kit.Header, objects); err != nil {
+				blog.Errorf("update view failed, err: %s, rid: %s", err, ctx.Kit.Rid)
+				return err
+			}
+		}
+
 		return nil
 	})
 
@@ -215,20 +243,31 @@ func (s *Service) DeleteObject(ctx *rest.Contexts) {
 		return
 	}
 
-	condition := mapstr.MapStr{common.BKFieldID: id}
-	//delete model
+	var obj *metadata.Object
+	cond := mapstr.MapStr{common.BKFieldID: id}
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
-		err = s.Logics.ObjectOperation().DeleteObject(ctx.Kit, condition, true)
+		obj, err = s.Logics.ObjectOperation().DeleteObject(ctx.Kit, cond, true)
 		if err != nil {
 			return err
 		}
 		return nil
 	})
-
 	if txnErr != nil {
 		ctx.RespAutoError(txnErr)
 		return
 	}
+
+	if auth.EnableAuthorize() {
+		// delete iam view
+		// if some errors occur, the sync iam task will delete the iam view in the end
+		objects := []metadata.Object{*obj}
+		// use new transaction, need a new header
+		ctx.Kit.Header = ctx.Kit.NewHeader()
+		if err := s.AuthManager.Viewer.DeleteView(ctx.Kit.Ctx, ctx.Kit.Header, objects); err != nil {
+			blog.Errorf("delete view failed, err: %s, rid: %s", err, ctx.Kit.Rid)
+		}
+	}
+
 	ctx.RespEntity(nil)
 }
 

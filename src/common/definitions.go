@@ -73,7 +73,6 @@ const (
 
 	// BKTopoBusinessLevelDefault the mainline topo level default level
 	BKTopoBusinessLevelDefault = 7
-
 )
 
 const (
@@ -270,6 +269,9 @@ const (
 
 	// TimeTransferModel the time transferModel field
 	TimeTransferModel = "2006-01-02 15:04:05"
+
+	// TimeDayTransferModel the time transferModel field
+	TimeDayTransferModel = "2006-01-02"
 
 	// BKCloudTaskID the cloud sync task id
 	BKCloudTaskID = "bk_task_id"
@@ -1101,6 +1103,8 @@ const (
 	BKSynchronizeDataTaskDefaultUser = "synchronize task user"
 
 	BKCloudSyncUser = "cloud_sync_user"
+
+	BKIAMSyncUser = "iam_sync_user"
 )
 
 const (

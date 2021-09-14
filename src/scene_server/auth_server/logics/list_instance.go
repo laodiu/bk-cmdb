@@ -68,7 +68,18 @@ func (lgc *Logics) listInstance(kit *rest.Kit, cond map[string]interface{}, reso
 // searchAuthResource search auth resource instances from database
 func (lgc *Logics) searchAuthResource(kit *rest.Kit, param metadata.PullResourceParam, resourceType iam.TypeID) (
 	*metadata.PullResourceResult, error) {
-	param.Collection = getResourceTableName(resourceType)
+	if iam.IsIAMSysInstance(resourceType) {
+		objID, err := lgc.GetObjIDFromResourceType(kit.Ctx, kit.Header, resourceType)
+		if err != nil {
+			blog.ErrorJSON("get object id from resource type failed, error: %s, resource type: %s, rid: %s",
+				err, resourceType, kit.Rid)
+			return nil, err
+		}
+		param.Collection = common.GetObjectInstTableName(objID, kit.SupplierAccount)
+	} else {
+		param.Collection = getResourceTableName(resourceType)
+	}
+	
 	if param.Collection == "" {
 		blog.Errorf("request type %s is invalid, rid: %s", resourceType, kit.Rid)
 		return nil, kit.CCError.CCErrorf(common.CCErrCommParamsIsInvalid, "type")
@@ -273,25 +284,21 @@ func (lgc *Logics) ListHostInstance(kit *rest.Kit, resourceType iam.TypeID, filt
 		relationReq = &metadata.DistinctHostIDByTopoRelationRequest{ModuleIDArr: []int64{parentID}}
 	}
 
-	hostRsp, err := lgc.CoreAPI.CoreService().Host().GetDistinctHostIDByTopology(kit.Ctx, kit.Header, relationReq)
+	hostIDs, err := lgc.CoreAPI.CoreService().Host().GetDistinctHostIDByTopology(kit.Ctx, kit.Header, relationReq)
 	if err != nil {
 		blog.Errorf("get host ids by parent failed, err: %s, rid: %s", err.Error(), kit.Rid)
 		return nil, err
 	}
-	if err := hostRsp.Error(); err != nil {
-		blog.Errorf("get host ids by parent failed, err: %s, rid: %s", err.Error(), kit.Rid)
-		return nil, hostRsp.Error()
-	}
 
-	if len(hostRsp.Data.IDArr) == 0 || int64(len(hostRsp.Data.IDArr)) <= page.Offset {
+	if len(hostIDs) == 0 || int64(len(hostIDs)) <= page.Offset {
 		return &types.ListInstanceResult{Count: 0, Results: []types.InstanceResource{}}, nil
 	}
 
 	if filter.Keyword != "" {
-		return lgc.listHostInstanceFromDB(kit, hostRsp.Data.IDArr, page, filter.Keyword)
+		return lgc.listHostInstanceFromDB(kit, hostIDs, page, filter.Keyword)
 	}
 
-	return lgc.listHostInstanceFromCache(kit, hostRsp.Data.IDArr, page)
+	return lgc.listHostInstanceFromCache(kit, hostIDs, page)
 }
 
 func (lgc *Logics) listHostInstanceFromDB(kit *rest.Kit, hostIDs []int64, page types.Page, keyword string) (

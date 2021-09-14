@@ -23,11 +23,10 @@ import (
 
 type HostClientInterface interface {
 	TransferToInnerModule(ctx context.Context, h http.Header, input *metadata.TransferHostToInnerModule) (
-		resp *metadata.OperaterException, err error)
+		[]metadata.ExceptionResult, errors.CCErrorCoder)
 	TransferToNormalModule(ctx context.Context, header http.Header, input *metadata.HostsModuleRelation) (
-		resp *metadata.OperaterException, err error)
-	TransferToAnotherBusiness(ctx context.Context, header http.Header,
-		input *metadata.TransferHostsCrossBusinessRequest) (resp *metadata.OperaterException, err error)
+		[]metadata.ExceptionResult, errors.CCErrorCoder)
+	TransferToAnotherBusiness(ctx context.Context, header http.Header, input *metadata.TransferHostsCrossBusinessRequest) (resp *metadata.OperaterException, err error)
 
 	RemoveFromModule(ctx context.Context, header http.Header, input *metadata.RemoveHostsFromModuleOption) (
 		resp *metadata.OperaterException, err error)
@@ -95,7 +94,7 @@ type HostClientInterface interface {
 		resp *metadata.CloudAreaHostCountResult, err error)
 
 	GetDistinctHostIDByTopology(ctx context.Context, header http.Header,
-		input *metadata.DistinctHostIDByTopoRelationRequest) (resp *metadata.DistinctIDResponse, err error)
+		input *metadata.DistinctHostIDByTopoRelationRequest) ([]int64, errors.CCErrorCoder)
 
 	TransferHostResourceDirectory(ctx context.Context, header http.Header,
 		option *metadata.TransferHostResourceDirectory) errors.CCErrorCoder

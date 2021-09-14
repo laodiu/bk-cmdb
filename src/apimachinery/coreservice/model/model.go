@@ -43,7 +43,7 @@ type ModelClientInterface interface {
 	DeleteModelCascade(ctx context.Context, h http.Header, modelID int64) (*metadata.DeletedCount, error)
 	ReadModelWithAttribute(ctx context.Context, h http.Header, input *metadata.QueryCondition) (
 		resp *metadata.ReadModelWithAttributeResult, err error)
-	// TODO replace the calling of ReadModelWithAttribute that do not need the object's attibutes with this
+	// TODO replace the calling of ReadModelWithAttribute that do not need the object's attributes with this
 	ReadModel(ctx context.Context, h http.Header, input *metadata.QueryCondition) (*metadata.QueryModelDataResult,
 		error)
 	CreateModelAttrs(ctx context.Context, h http.Header, objID string, input *metadata.CreateModelAttributes) (
