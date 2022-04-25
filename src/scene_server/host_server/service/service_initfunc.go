@@ -5,7 +5,7 @@ import (
 
 	"configcenter/src/common/http/rest"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
 func (s *Service) initService(web *restful.WebService) {
@@ -67,17 +67,30 @@ func (s *Service) initFindhost(web *restful.WebService) {
 		Language: s.Engine.Language,
 	})
 
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/module_relation/bk_biz_id/{bk_biz_id}", Handler: s.FindModuleHostRelation})
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/hosts/by_service_templates/biz/{bk_biz_id}", Handler: s.FindHostsByServiceTemplates})
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/hosts/by_set_templates/biz/{bk_biz_id}", Handler: s.FindHostsBySetTemplates})
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/list_resource_pool_hosts", Handler: s.ListResourcePoolHosts})
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/app/{appid}/list_hosts", Handler: s.ListBizHosts})
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/list_hosts_without_app", Handler: s.ListHostsWithNoBiz})
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/app/{bk_biz_id}/list_hosts_topo", Handler: s.ListBizHostsTopo})
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/host/count_by_topo_node/bk_biz_id/{bk_biz_id}", Handler: s.CountTopoNodeHosts})
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/hosts/by_topo/biz/{bk_biz_id}", Handler: s.FindHostsByTopo})
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/hosts/detail_topo", Handler: s.ListHostDetailAndTopology})
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/hosts/relation/with_topo", Handler: s.GetHostRelationsWithMainlineTopoInstance})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/module_relation/bk_biz_id/{bk_biz_id}",
+		Handler: s.FindModuleHostRelation})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/hosts/by_service_templates/biz/{bk_biz_id}",
+		Handler: s.FindHostsByServiceTemplates})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/hosts/by_set_templates/biz/{bk_biz_id}",
+		Handler: s.FindHostsBySetTemplates})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/list_resource_pool_hosts",
+		Handler: s.ListResourcePoolHosts})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/app/{appid}/list_hosts",
+		Handler: s.ListBizHosts})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/list_hosts_without_app",
+		Handler: s.ListHostsWithNoBiz})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/app/{bk_biz_id}/list_hosts_topo",
+		Handler: s.ListBizHostsTopo})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/host/count_by_topo_node/bk_biz_id/{bk_biz_id}",
+		Handler: s.CountTopoNodeHosts})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/hosts/by_topo/biz/{bk_biz_id}",
+		Handler: s.FindHostsByTopo})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/hosts/detail_topo",
+		Handler: s.ListHostDetailAndTopology})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/hosts/relation/with_topo",
+		Handler: s.GetHostRelationsWithMainlineTopoInstance})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/hosts/service_template",
+		Handler: s.ListServiceTemplateIDsByHost})
 
 	utility.AddToRestfulWebService(web)
 
@@ -92,12 +105,13 @@ func (s *Service) initHost(web *restful.WebService) {
 
 	utility.AddHandler(rest.Action{Verb: http.MethodDelete, Path: "/hosts/batch", Handler: s.DeleteHostBatchFromResourcePool})
 	utility.AddHandler(rest.Action{Verb: http.MethodGet, Path: "/hosts/{bk_supplier_account}/{bk_host_id}", Handler: s.GetHostInstanceProperties})
-	utility.AddHandler(rest.Action{Verb: http.MethodGet, Path: "/hosts/snapshot/{bk_host_id}", Handler: s.HostSnapInfo})
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/snapshot/batch", Handler: s.HostSnapInfoBatch})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/add", Handler: s.AddHost})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/excel/add", Handler: s.AddHostByExcel})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/add/resource", Handler: s.AddHostToResourcePool})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/search", Handler: s.SearchHost})
+	// search host by biz set, **only for ui**
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/hosts/biz_set/{bk_biz_set_id}",
+		Handler: s.SearchHost})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/search/asstdetail", Handler: s.SearchHostWithAsstDetail})
 	utility.AddHandler(rest.Action{Verb: http.MethodPut, Path: "/hosts/batch", Handler: s.UpdateHostBatch})
 	utility.AddHandler(rest.Action{Verb: http.MethodPut, Path: "/hosts/property/batch", Handler: s.UpdateHostPropertyBatch})
@@ -164,6 +178,12 @@ func (s *Service) initModule(web *restful.WebService) {
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/modules/read", Handler: s.GetHostModuleRelation})
 	// transfer host to other business
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/hosts/modules/across/biz", Handler: s.TransferHostAcrossBusiness})
+
+	// transfer resource host(multi business) to other business.
+	utility.AddHandler(rest.Action{Verb: http.MethodPost,
+		Path:    "/hosts/resource/cross/biz",
+		Handler: s.TransferResourceHostsAcrossBusiness})
+
 	// TODO: Deprecated, delete this api. delete host from business, used for framework
 	//utility.AddHandler(rest.Action{Verb: http.MethodDelete, Path: "/hosts/module/biz/delete", Handler: s.DeleteHostFromBusiness})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/host/topo/relation/read", Handler: s.GetAppHostTopoRelation})

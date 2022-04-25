@@ -1,5 +1,5 @@
 import Meta from '@/router/meta'
-import { MENU_MODEL_MANAGEMENT } from '@/dictionary/menu-symbol'
+import { MENU_MODEL_MANAGEMENT, MENU_MODEL_DETAILS } from '@/dictionary/menu-symbol'
 
 export default [{
   name: MENU_MODEL_MANAGEMENT,
@@ -7,11 +7,11 @@ export default [{
   component: () => import('./index.vue'),
   meta: new Meta({
     menu: {
-      i18n: '模型'
+      i18n: '模型管理'
     }
   })
 }, {
-  name: 'modelDetails',
+  name: MENU_MODEL_DETAILS,
   path: 'index/details/:modelId',
   component: () => import('./children/index.vue'),
   meta: new Meta({

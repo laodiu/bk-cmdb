@@ -6,6 +6,7 @@
         :list="options"
         setting-key="bk_obj_asst_id"
         display-key="_label"
+        searchable
         @on-selected="handleSelectObj">
       </cmdb-selector>
     </div>
@@ -14,7 +15,7 @@
       <div class="filter-group filter-group-property fl">
         <cmdb-relation-property-filter
           :obj-id="currentAsstObj"
-          :exclude-type="['foreignkey']"
+          :exclude-type="['foreignkey', 'time']"
           @on-property-selected="handlePropertySelected"
           @on-operator-selected="handleOperatorSelected"
           @on-value-change="handleValueChange">
@@ -81,6 +82,9 @@
   import bus from '@/utils/bus.js'
   import { mapGetters, mapActions } from 'vuex'
   import authMixin from '../mixin-auth'
+  import instanceService from '@/service/instance/instance'
+  import instanceAssociationService from '@/service/instance/association'
+  import queryBuilderOperator from '@/utils/query-builder-operator'
   export default {
     name: 'cmdb-relation-create',
     components: {
@@ -243,12 +247,10 @@
     },
     methods: {
       ...mapActions('objectAssociation', [
-        'searchInstAssociation',
         'createInstAssociation',
         'deleteInstAssociation'
       ]),
       ...mapActions('objectModelProperty', ['searchObjectAttribute']),
-      ...mapActions('objectCommonInst', ['searchInst']),
       ...mapActions('objectBiz', ['searchBusiness']),
       ...mapActions('hostSearch', ['searchHost']),
       getInstanceAuth(row) {
@@ -343,6 +345,7 @@
       setAssociationOptions() {
         /* eslint-disable no-underscore-dangle */
         const options = this.associationObject.map((option) => {
+          // 创建模式下只使用源的视角来看，因此仅需要使用关联对象中的模型对象id与当前对象比较
           const isSource = option.bk_obj_id === this.objId
           const type = this.associationTypes.find(type => type.bk_asst_id === option.bk_asst_id)
           const model = this.models.find((model) => {
@@ -374,21 +377,20 @@
         ])
         this.getInstance()
       },
-      getExistInstAssociation() {
+      async getExistInstAssociation() {
         const option = this.currentOption
-        const { isSource } = this
-        return this.searchInstAssociation({
-          params: {
-            condition: {
-              bk_asst_id: option.bk_asst_id,
-              bk_obj_asst_id: option.bk_obj_asst_id,
-              bk_obj_id: isSource ? this.objId : option.bk_obj_id,
-              bk_asst_obj_id: isSource ? option.bk_asst_obj_id : this.objId,
-              [`${isSource ? 'bk_inst_id' : 'bk_asst_inst_id'}`]: this.instId
-            }
+        const condition = {
+          bk_asst_id: option.bk_asst_id,
+          bk_obj_asst_id: option.bk_obj_asst_id,
+          bk_asst_obj_id: this.isSource ? option.bk_asst_obj_id : this.objId,
+          [`${this.isSource ? 'bk_inst_id' : 'bk_asst_inst_id'}`]: this.instId
+        }
+        this.existInstAssociation = await instanceAssociationService.findAll({
+          bk_obj_id: this.isSource ? this.objId : option.bk_obj_id,
+          conditions: {
+            condition: 'AND',
+            rules: Object.keys(condition).map(key => ({ field: key, operator: 'equal', value: condition[key] }))
           }
-        }).then((data) => {
-          this.existInstAssociation = data || []
         })
       },
       isAssociated(inst) {
@@ -442,7 +444,8 @@
           return exist.bk_inst_id === instId
         })
         return this.deleteInstAssociation({
-          id: (instAssociation || {}).id
+          id: (instAssociation || {}).id,
+          objId: this.objId
         })
       },
       beforeUpdate(event, instId, updateType = 'new') {
@@ -557,8 +560,8 @@
         })
       },
       getObjInstance(objId, config) {
-        return this.searchInst({
-          objId,
+        return instanceService.find({
+          bk_obj_id: objId,
           params: this.getObjParams(),
           config
         })
@@ -566,17 +569,18 @@
       getObjParams() {
         const params = {
           page: this.page,
-          fields: {},
-          condition: {}
+          fields: [],
         }
         const property = this.getProperty(this.filter.id)
         if (this.filter.value !== '' && property) {
-          const objId = this.currentAsstObj
-          params.condition[objId] = [{
-            field: this.filter.id,
-            operator: this.filter.operator,
-            value: this.filter.value
-          }]
+          params.conditions = {
+            condition: 'AND',
+            rules: [{
+              field: this.filter.id,
+              operator: queryBuilderOperator(this.filter.operator),
+              value: this.filter.value
+            }]
+          }
         }
         return params
       },
@@ -586,9 +590,6 @@
         this.table.originalList = Object.freeze(data.info.slice())
         if (asstObjId === 'host') {
           data.info = data.info.map(item => item.host)
-        }
-        if (asstObjId === this.objId) {
-          data.info = data.info.filter(item => item[this.instanceIdKey] !== this.instId)
         }
         this.table.list = data.info
       },

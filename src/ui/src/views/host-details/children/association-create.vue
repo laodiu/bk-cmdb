@@ -4,6 +4,7 @@
       <label class="filter-label fl">{{$t('关联列表')}}</label>
       <cmdb-selector class="fl" style="width: 280px;"
         :list="options"
+        searchable
         setting-key="bk_obj_asst_id"
         display-key="_label"
         @on-selected="handleSelectObj">
@@ -14,7 +15,7 @@
       <div class="filter-group filter-group-property fl">
         <cmdb-association-property-filter
           :obj-id="currentAsstObj"
-          :exclude-type="['foreignkey']"
+          :exclude-type="['foreignkey', 'time']"
           @on-property-selected="handlePropertySelected"
           @on-operator-selected="handleOperatorSelected"
           @on-value-change="handleValueChange">
@@ -82,6 +83,9 @@
   import bus from '@/utils/bus.js'
   import { mapGetters, mapActions } from 'vuex'
   import authMixin from '../mixin-auth'
+  import instanceService from '@/service/instance/instance'
+  import instanceAssociationService from '@/service/instance/association'
+  import queryBuilderOperator from '@/utils/query-builder-operator'
   export default {
     name: 'cmdb-host-association-create',
     components: {
@@ -100,6 +104,7 @@
         table: {
           header: [],
           list: [],
+          originalList: [],
           pagination: {
             count: 0,
             current: 1,
@@ -228,13 +233,11 @@
     methods: {
       ...mapActions('objectAssociation', [
         'searchAssociationType',
-        'searchInstAssociation',
         'createInstAssociation',
         'deleteInstAssociation',
         'searchObjectAssociation'
       ]),
       ...mapActions('objectModelProperty', ['searchObjectAttribute']),
-      ...mapActions('objectCommonInst', ['searchInst']),
       ...mapActions('objectBiz', ['searchBusiness']),
       ...mapActions('hostSearch', ['searchHost']),
       getInstanceAuth(row) {
@@ -408,21 +411,21 @@
         ])
         this.getInstance()
       },
-      getExistInstAssociation() {
+      async getExistInstAssociation() {
         const option = this.currentOption
         const { isSource } = this
-        return this.searchInstAssociation({
-          params: {
-            condition: {
-              bk_asst_id: option.bk_asst_id,
-              bk_obj_asst_id: option.bk_obj_asst_id,
-              bk_obj_id: isSource ? this.objId : option.bk_obj_id,
-              bk_asst_obj_id: isSource ? option.bk_asst_obj_id : this.objId,
-              [`${isSource ? 'bk_inst_id' : 'bk_asst_inst_id'}`]: this.instId
-            }
+        const condition = {
+          bk_asst_id: option.bk_asst_id,
+          bk_obj_asst_id: option.bk_obj_asst_id,
+          bk_asst_obj_id: this.isSource ? option.bk_asst_obj_id : this.objId,
+          [`${this.isSource ? 'bk_inst_id' : 'bk_asst_inst_id'}`]: this.instId
+        }
+        this.existInstAssociation = await instanceAssociationService.findAll({
+          bk_obj_id: isSource ? this.objId : option.bk_obj_id,
+          conditions: {
+            condition: 'AND',
+            rules: Object.keys(condition).map(key => ({ field: key, operator: 'equal', value: condition[key] }))
           }
-        }).then((data) => {
-          this.existInstAssociation = data || []
         })
       },
       isAssociated(inst) {
@@ -476,7 +479,8 @@
           return exist.bk_inst_id === instId
         })
         return this.deleteInstAssociation({
-          id: (instAssociation || {}).id
+          id: (instAssociation || {}).id,
+          objId: this.objId
         })
       },
       beforeUpdate(event, instId, updateType = 'new') {
@@ -558,7 +562,12 @@
         })
       },
       getHostCondition() {
-        const condition = [{ bk_obj_id: 'host', condition: [], fields: [] }]
+        const condition = [
+          { bk_obj_id: 'host', condition: [], fields: [] },
+          { bk_obj_id: 'biz', condition: [], fields: [] },
+          { bk_obj_id: 'module', condition: [], fields: [] },
+          { bk_obj_id: 'set', condition: [], fields: [] }
+        ]
         const property = this.getProperty(this.filter.id)
         if (this.filter.value !== '' && property) {
           condition[0].condition.push({
@@ -586,8 +595,8 @@
         })
       },
       getObjInstance(objId, config) {
-        return this.searchInst({
-          objId,
+        return instanceService.find({
+          bk_obj_id: objId,
           params: this.getObjParams(),
           config
         })
@@ -595,15 +604,19 @@
       getObjParams() {
         const params = {
           page: this.page,
-          fields: {},
-          condition: {}
+          fields: []
         }
         const property = this.getProperty(this.filter.id)
-        if (this.filter.value !== '' && property) {
-          const objId = this.currentAsstObj
-          params.condition[objId] = [{
+
+        if (!this.filter.value?.length || !property) {
+          return params
+        }
+
+        params.conditions = {
+          condition: 'AND',
+          rules: [{
             field: this.filter.id,
-            operator: this.filter.operator,
+            operator: queryBuilderOperator(this.filter.operator),
             value: this.filter.value
           }]
         }
@@ -612,11 +625,9 @@
       setTableList(data, asstObjId) {
         // const properties = this.properties
         this.table.pagination.count = data.count
+        this.table.originalList = Object.freeze(data.info.slice())
         if (asstObjId === 'host') {
           data.info = data.info.map(item => item.host)
-        }
-        if (asstObjId === this.objId) {
-          data.info = data.info.filter(item => item[this.instanceIdKey] !== this.instId)
         }
         this.table.list = data.info
       },

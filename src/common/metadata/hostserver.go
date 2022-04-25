@@ -40,16 +40,6 @@ type HostInstancePropertiesResult struct {
 	Data     []HostInstanceProperties `json:"data"`
 }
 
-type HostSnapResult struct {
-	BaseResp `json:",inline"`
-	Data     map[string]interface{} `json:"data"`
-}
-
-type HostSnapBatchResult struct {
-	BaseResp `json:",inline"`
-	Data     []map[string]interface{} `json:"data"`
-}
-
 type HostInputType string
 
 const (
@@ -96,6 +86,8 @@ type HostsModuleRelation struct {
 	HostID        []int64 `json:"bk_host_id"`
 	ModuleID      []int64 `json:"bk_module_id"`
 	IsIncrement   bool    `json:"is_increment"`
+	// DisableAutoCreateSvcInst disable auto create service instance when transfer to a module with process in template
+	DisableAutoCreateSvcInst bool `json:"disable_auto_create"`
 }
 
 type HostModuleConfig struct {
@@ -381,6 +373,7 @@ type ListHostsParameter struct {
 	SetIDs             []int64                   `json:"bk_set_ids"`
 	SetCond            []ConditionItem           `json:"set_cond"`
 	ModuleIDs          []int64                   `json:"bk_module_ids"`
+	ModuleCond         []ConditionItem           `json:"module_cond"`
 	HostPropertyFilter *querybuilder.QueryFilter `json:"host_property_filter"`
 	Fields             []string                  `json:"fields"`
 	Page               BasePage                  `json:"page"`
@@ -392,7 +385,7 @@ func (option ListHostsParameter) Validate() (string, error) {
 	}
 
 	if option.HostPropertyFilter != nil {
-		if key, err := option.HostPropertyFilter.Validate(); err != nil {
+		if key, err := option.HostPropertyFilter.Validate(&querybuilder.RuleOption{NeedSameSliceElementType: true}); err != nil {
 			return fmt.Sprintf("host_property_filter.%s", key), err
 		}
 		if option.HostPropertyFilter.GetDeep() > querybuilder.MaxDeep {
@@ -423,7 +416,7 @@ func (option ListHostsWithNoBizParameter) Validate() (string, error) {
 	}
 
 	if option.HostPropertyFilter != nil {
-		if key, err := option.HostPropertyFilter.Validate(); err != nil {
+		if key, err := option.HostPropertyFilter.Validate(&querybuilder.RuleOption{NeedSameSliceElementType: true}); err != nil {
 			return fmt.Sprintf("host_property_filter.%s", key), err
 		}
 		if option.HostPropertyFilter.GetDeep() > querybuilder.MaxDeep {
@@ -432,6 +425,58 @@ func (option ListHostsWithNoBizParameter) Validate() (string, error) {
 	}
 
 	return "", nil
+}
+
+// ListBizHostsTopoParameter parameter for listing biz hosts with topology info
+type ListBizHostsTopoParameter struct {
+	SetPropertyFilter    *querybuilder.QueryFilter `json:"set_property_filter"`
+	ModulePropertyFilter *querybuilder.QueryFilter `json:"module_property_filter"`
+	HostPropertyFilter   *querybuilder.QueryFilter `json:"host_property_filter"`
+	Fields               []string                  `json:"fields"`
+	Page                 BasePage                  `json:"page"`
+}
+
+// Validate validate if the parameter is valid for listing biz hosts with topology info
+func (option ListBizHostsTopoParameter) Validate(errProxy errors.DefaultCCErrorIf) errors.CCErrorCoder {
+	if option.Page.Limit == 0 {
+		return errProxy.CCErrorf(common.CCErrCommParamsNeedSet, "page.limit")
+	}
+	if option.Page.Limit > common.BKMaxInstanceLimit {
+		return errProxy.CCErrorf(common.CCErrCommXXExceedLimit, "page.limit", common.BKMaxInstanceLimit)
+	}
+
+	opt := &querybuilder.RuleOption{NeedSameSliceElementType: true}
+	if option.HostPropertyFilter != nil {
+		if key, err := option.HostPropertyFilter.Validate(opt); err != nil {
+			blog.Errorf("valid host property filter failed, err: %v", err)
+			return errProxy.CCErrorf(common.CCErrCommParamsInvalid, fmt.Sprintf("host_property_filter.%s", key))
+		}
+		if option.HostPropertyFilter.GetDeep() > querybuilder.MaxDeep {
+			return errProxy.CCErrorf(common.CCErrCommXXExceedLimit, "host_property_filter.rules", querybuilder.MaxDeep)
+		}
+	}
+
+	if option.SetPropertyFilter != nil {
+		if key, err := option.SetPropertyFilter.Validate(opt); err != nil {
+			blog.Errorf("valid set property filter failed, err: %v", err)
+			return errProxy.CCErrorf(common.CCErrCommParamsInvalid, fmt.Sprintf("set_property_filter.%s", key))
+		}
+		if option.SetPropertyFilter.GetDeep() > querybuilder.MaxDeep {
+			return errProxy.CCErrorf(common.CCErrCommXXExceedLimit, "set_property_filter.rules", querybuilder.MaxDeep)
+		}
+	}
+
+	if option.ModulePropertyFilter != nil {
+		if key, err := option.ModulePropertyFilter.Validate(opt); err != nil {
+			blog.Errorf("valid module property filter failed, err: %v", err)
+			return errProxy.CCErrorf(common.CCErrCommParamsInvalid, fmt.Sprintf("module_property_filter.%s", key))
+		}
+		if option.ModulePropertyFilter.GetDeep() > querybuilder.MaxDeep {
+			return errProxy.CCErrorf(common.CCErrCommXXExceedLimit, "module_property_filter.rules", querybuilder.MaxDeep)
+		}
+	}
+
+	return nil
 }
 
 type ListHostsDetailAndTopoOption struct {
@@ -459,7 +504,7 @@ func (option *ListHostsDetailAndTopoOption) Validate() *errors.RawErrorInfo {
 	}
 
 	if option.HostPropertyFilter != nil {
-		if key, err := option.HostPropertyFilter.Validate(); err != nil {
+		if key, err := option.HostPropertyFilter.Validate(&querybuilder.RuleOption{NeedSameSliceElementType: true}); err != nil {
 			return &errors.RawErrorInfo{
 				ErrCode: common.CCErrCommParamsInvalid,
 				Args:    []interface{}{"host_property_filter." + key},
@@ -510,7 +555,7 @@ func (option ListHosts) Validate() (errKey string, err error) {
 	}
 
 	if option.HostPropertyFilter != nil {
-		if key, err := option.HostPropertyFilter.Validate(); err != nil {
+		if key, err := option.HostPropertyFilter.Validate(&querybuilder.RuleOption{NeedSameSliceElementType: true}); err != nil {
 			return fmt.Sprintf("host_property_filter.%s", key), err
 		}
 		if option.HostPropertyFilter.GetDeep() > querybuilder.MaxDeep {
@@ -654,6 +699,29 @@ type TransferHostAcrossBusinessParameter struct {
 	DstModuleID int64   `json:"bk_module_id"`
 }
 
+// TransferResourceHostAcrossBusinessParam Transfer hosts across business request parameter.
+type TransferResourceHostAcrossBusinessParam struct {
+
+	// ResourceSrcHosts source host list.
+	ResourceSrcHosts []TransferResourceParam `json:"resource_hosts"`
+
+	// DstAppID destination biz.
+	DstAppID int64 `json:"dst_bk_biz_id"`
+
+	// DstModuleID destination module.
+	DstModuleID int64 `json:"dst_bk_module_id"`
+}
+
+// TransferSrcParam src biz ids and host list.
+type TransferResourceParam struct {
+
+	// SrcAppId src biz id.
+	SrcAppId int64 `json:"src_bk_biz_id"`
+
+	// HostIDs hosts to be transferred.
+	HostIDs []int64 `json:"src_bk_host_ids"`
+}
+
 // HostModuleRelationParameter get host and module  relation parameter
 type HostModuleRelationParameter struct {
 	AppID  int64   `json:"bk_biz_id"`
@@ -739,20 +807,22 @@ type TopoNodeHostCount struct {
 }
 
 type TransferHostWithAutoClearServiceInstanceOption struct {
-	HostIDs []int64 `field:"bk_host_ids" json:"bk_host_ids"`
+	HostIDs []int64 `json:"bk_host_ids"`
 
-	RemoveFromNode *TopoNode `field:"remove_from_node" json:"remove_from_node"`
-	AddToModules   []int64   `field:"add_to_modules" json:"add_to_modules"`
-	// 主机从 RemoveFromNode 移除后如果不再属于其它模块， 默认转移到空闲机模块
-	// DefaultInternalModule 支持调整这种模型行为，可设置成待回收模块或者故障机模块
-	DefaultInternalModule int64 `field:"default_internal_module" json:"default_internal_module"`
+	RemoveFromModules []int64 `json:"remove_from_modules,omitempty"`
+	AddToModules      []int64 `json:"add_to_modules,omitempty"`
+	// 主机从 RemoveFromModules 移除后如果不再属于其它模块， 默认转移到空闲机模块
+	// DefaultInternalModule 支持调整这种默认行为，可设置成待回收模块或者故障机模块
+	DefaultInternalModule int64 `json:"default_internal_module,omitempty"`
+	// IsRemoveFromAll if set, remove host from all of its current modules, if not, use remove_from_modules
+	IsRemoveFromAll bool `json:"is_remove_from_all"`
 
-	Options TransferOptions `field:"options" json:"options"`
+	Options TransferOptions `json:"options,omitempty"`
 }
 
 type TransferOptions struct {
-	ServiceInstanceOptions     []CreateServiceInstanceOption `field:"service_instance_options" json:"service_instance_options"`
-	HostApplyConflictResolvers []HostApplyConflictResolver   `field:"host_apply_conflict_resolvers" json:"host_apply_conflict_resolvers" bson:"host_apply_conflict_resolvers" mapstructure:"host_apply_conflict_resolvers"`
+	ServiceInstanceOptions     ServiceInstanceOptions      `json:"service_instance_options"`
+	HostApplyConflictResolvers []HostApplyConflictResolver `json:"host_apply_conflict_resolvers"`
 }
 
 type HostTransferPlan struct {
@@ -762,6 +832,13 @@ type HostTransferPlan struct {
 	ToAddToModules          []int64          `field:"to_add_to_modules" json:"to_add_to_modules"`
 	IsTransferToInnerModule bool             `field:"is_transfer_to_inner_module" json:"is_transfer_to_inner_module"`
 	HostApplyPlan           OneHostApplyPlan `field:"host_apply_plan" json:"host_apply_plan" mapstructure:"host_apply_plan"`
+}
+
+// HostTransferResult transfer host result, contains the transfer status and message
+type HostTransferResult struct {
+	HostID  int64  `json:"bk_host_id"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }
 
 type RemoveFromModuleInfo struct {
@@ -796,4 +873,27 @@ type UpdateHostPropertyBatchParameter struct {
 type updateHostProperty struct {
 	HostID     int64                  `json:"bk_host_id"`
 	Properties map[string]interface{} `json:"properties"`
+}
+
+// HostIDArray hostID array struct
+type HostIDArray struct {
+	HostIDs []int64 `field:"bk_host_ids" json:"bk_host_ids" mapstructure:"bk_host_ids"`
+}
+
+// Validate validate hostIDs length
+func (h *HostIDArray) Validate() (rawError errors.RawErrorInfo) {
+	if len(h.HostIDs) == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsIsInvalid,
+			Args:    []interface{}{"bk_host_ids"},
+		}
+	}
+
+	if len(h.HostIDs) > common.BKMaxSyncIdentifierLimit {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommXXExceedLimit,
+			Args:    []interface{}{"bk_host_ids", common.BKMaxSyncIdentifierLimit},
+		}
+	}
+	return errors.RawErrorInfo{}
 }

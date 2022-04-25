@@ -73,9 +73,16 @@ const (
 
 	// BKTopoBusinessLevelDefault the mainline topo level default level
 	BKTopoBusinessLevelDefault = 7
+
+	// BKMaxSyncIdentifierLimit sync identifier max value
+	BKMaxSyncIdentifierLimit = 200
 )
 
 const (
+
+	// BKInnerObjIDBizSet the inner object
+	BKInnerObjIDBizSet = "bk_biz_set_obj"
+
 	// BKInnerObjIDApp the inner object
 	BKInnerObjIDApp = "biz"
 
@@ -205,6 +212,19 @@ const (
 
 	// BKDBSize counts and returns the total number of items in an array
 	BKDBSize = "$size"
+
+	// BKDBType selects documents where the value of the field is an instance of the specified BSON type(s).
+	// Querying by data type is useful when dealing with highly unstructured data where data types are not predictable.
+	BKDBType = "$type"
+
+	// BKDBSort the db operator
+	BKDBSort = "$sort"
+
+	// BKDBReplaceRoot the db operator
+	BKDBReplaceRoot = "$replaceRoot"
+
+	// BKDBLimit the db operator to limit return number of doc
+	BKDBLimit = "$limit"
 )
 
 const (
@@ -257,6 +277,9 @@ const (
 	// TimeTransferModel the time transferModel field
 	TimeTransferModel = "2006-01-02 15:04:05"
 
+	// TimeDayTransferModel the time transferModel field
+	TimeDayTransferModel = "2006-01-02"
+
 	// BKCloudTaskID the cloud sync task id
 	BKCloudTaskID = "bk_task_id"
 
@@ -288,11 +311,6 @@ const (
 	BKModuleNameField = "bk_module_name"
 
 	HostApplyEnabledField = "host_apply_enabled"
-
-	// BKSubscriptionIDField the subscription id field
-	BKSubscriptionIDField = "subscription_id"
-	// BKSubscriptionNameField the subscription name field
-	BKSubscriptionNameField = "subscription_name"
 
 	// BKOSTypeField the os type field
 	BKOSTypeField = "bk_os_type"
@@ -436,6 +454,9 @@ const (
 	// BKSetDescField the set desc field
 	BKSetDescField = "bk_set_desc"
 
+	// BKBizSetDescField the biz set desc field
+	BKBizSetDescField = "bk_biz_set_desc"
+
 	// BKSetCapacityField the set capacity field
 	BKSetCapacityField = "bk_capacity"
 
@@ -483,8 +504,7 @@ const (
 	BKProcessTemplateIDField = "process_template_id"
 	BKServiceCategoryIDField = "service_category_id"
 
-	BKSetTemplateIDField      = "set_template_id"
-	BKSetTemplateVersionField = "set_template_version"
+	BKSetTemplateIDField = "set_template_id"
 
 	HostApplyRuleIDField = "host_apply_rule_id"
 
@@ -510,6 +530,9 @@ const (
 
 	// BKIsPre the ispre field
 	BKIsPre = "ispre"
+
+	// BKObjectUniqueKeys object unique keys field
+	BKObjectUniqueKeys = "keys"
 
 	// BKIsIncrementField the isincrement field
 	BKIsIncrementField = "is_increment"
@@ -615,18 +638,48 @@ const (
 
 	BKAttributeIDField = "bk_attribute_id"
 
-	BKSubscribeID = "subscribeID"
-
 	BKTokenField       = "token"
 	BKCursorField      = "cursor"
 	BKClusterTimeField = "cluster_time"
 	BKEventTypeField   = "type"
 	BKStartAtTimeField = "start_at_time"
+	BKSubResourceField = "bk_sub_resource"
+
+	BKBizSetIDField    = "bk_biz_set_id"
+	BKBizSetNameField  = "bk_biz_set_name"
+	BKBizSetScopeField = "bk_scope"
+	BKBizSetMatchField = "match_all"
+
+	// BKHostInnerIPv6Field the host innerip field in the form of ipv6
+	BKHostInnerIPv6Field = "bk_host_innerip_v6"
+
+	// BKHostOuterIPv6Field the host outerip field in the form of ipv6
+	BKHostOuterIPv6Field = "bk_host_outerip_v6"
+
+	// BKAgentIDField the agent id field, used by agent to identify a host
+	BKAgentIDField = "bk_agent_id"
 )
 
 const (
 	BKRequestField = "bk_request_id"
 	BKTxnIDField   = "bk_txn_id"
+)
+
+const (
+	// UserDefinedModules user define idle module key.
+	UserDefinedModules = "user_modules"
+
+	// SystemSetName user define idle module key.
+	SystemSetName = "set_name"
+
+	// SystemIdleModuleKey system idle module key.
+	SystemIdleModuleKey = "idle"
+
+	// SystemFaultModuleKey system define fault module name.
+	SystemFaultModuleKey = "fault"
+
+	// SystemRecycleModuleKey system define recycle module name.
+	SystemRecycleModuleKey = "recycle"
 )
 
 // DefaultResSetName the inner module set
@@ -715,6 +768,9 @@ const (
 
 	// DefaultResSelfDefinedModuleFlag the default resource self-defined module flag
 	DefaultResSelfDefinedModuleFlag int = 4
+
+	// DefaultUserResModuleFlag the default platform self-defined module flag.
+	DefaultUserResModuleFlag int = 5
 )
 
 const (
@@ -745,6 +801,11 @@ const (
 
 	// FieldTypeUser the user field type
 	FieldTypeUser string = "objuser"
+
+	// FieldObject 此处只校验是否是对象。此校验是为了兼容biz_set中的bk_scope 的类型是 querybuilder，由于在 coreservice层解析出来的
+	// 是map[string]interface,所以在此处只需要校验是否是对象，对于querybuilder的合法性应该放在场景层做校验。后续如果走的是object校验，
+	// 都需要在场景层进行真正的校验
+	FieldObject string = "object"
 
 	// FieldTypeTimeZone the timezone field type
 	FieldTypeTimeZone string = "timezone"
@@ -777,7 +838,7 @@ const (
 	FieldTypeServiceCategoryRegexp string = `^([\w\p{Han}]|[:\-\(\)])+$`
 
 	//FieldTypeMainlineRegexp the mainline instance name regex expression
-	FieldTypeMainlineRegexp string = `^[^\|/:*,<>"?# ]+$`
+	FieldTypeMainlineRegexp string = `^[^\\\|\/:\*,<>"\?#\s]+$`
 
 	//FieldTypeSingleCharRegexp the single char regex expression
 	//FieldTypeSingleCharRegexp string = `^([\w\p{Han}]|[，。？！={}|?<>~～、：＃；％＊——……＆·＄（）‘’“”\[\]『』〔〕｛｝【】￥￡♀‖〖〗《》「」:,;\."'\/\\\+\-\s#@\(\)])+$`
@@ -803,6 +864,9 @@ const (
 
 	// HostAddMethodExcelAssociationIndexOffset
 	HostAddMethodExcelAssociationIndexOffset = 2
+
+	// HostAddMethodExcelDefaultIndex 生成表格数据起始索引，第一列为字段说明
+	HostAddMethodExcelDefaultIndex = 1
 
 	/*EXCEL color AARRGGBB :
 	AA means Alpha
@@ -857,6 +921,8 @@ const (
 	ExcelCellIgnoreValue = "--"
 )
 
+// BizSetConditionMaxDeep 业务集场景下querybuilder条件的最大深度不能超过2层
+const BizSetConditionMaxDeep = 2
 const (
 	// InputTypeExcel  data from excel
 	InputTypeExcel = "excel"
@@ -988,6 +1054,13 @@ const (
 	HostOSTypeEnumLinux   = "1"
 	HostOSTypeEnumWindows = "2"
 	HostOSTypeEnumAIX     = "3"
+	HostOSTypeEnumUNIX    = "4"
+	HostOSTypeEnumSolaris = "5"
+)
+
+const (
+	MaxProcessPrio = 10000
+	MinProcessPrio = -100
 )
 
 // integer const
@@ -1022,7 +1095,7 @@ const (
 const (
 	// URLFilterWhiteList url filter white list not execute any filter
 	// multiple url separated by commas
-	URLFilterWhiteListSuffix = "/healthz,/version"
+	URLFilterWhiteListSuffix = "/healthz,/version,/monitor_healthz"
 
 	URLFilterWhiteListSepareteChar = ","
 )
@@ -1087,6 +1160,8 @@ const (
 	BKSynchronizeDataTaskDefaultUser = "synchronize task user"
 
 	BKCloudSyncUser = "cloud_sync_user"
+
+	BKIAMSyncUser = "iam_sync_user"
 )
 
 const (
@@ -1144,16 +1219,16 @@ const (
 
 	/* synchronize model description classify*/
 
-	// SynchronizeModelTypeClassification synchroneize model classification
+	// SynchronizeModelTypeClassification synchronize model classification
 	SynchronizeModelTypeClassification = "model_classification"
-	// SynchronizeModelTypeAttribute synchroneize model attribute
+	// SynchronizeModelTypeAttribute synchronize model attribute
 	SynchronizeModelTypeAttribute = "model_attribute"
-	// SynchronizeModelTypeAttributeGroup synchroneize model attribute group
+	// SynchronizeModelTypeAttributeGroup synchronize model attribute group
 	SynchronizeModelTypeAttributeGroup = "model_atrribute_group"
-	// SynchronizeModelTypeBase synchroneize model attribute
+	// SynchronizeModelTypeBase synchronize model attribute
 	SynchronizeModelTypeBase = "model"
 
-	/* synchronize instance assoication sign*/
+	/* synchronize instance association sign*/
 
 	// SynchronizeAssociationTypeModelHost synchroneize model ggroup
 	SynchronizeAssociationTypeModelHost = "module_host"
@@ -1172,7 +1247,7 @@ const (
 
 const (
 	NameFieldMaxLength         = 256
-	MainlineNameFieldMaxLength = 32
+	MainlineNameFieldMaxLength = 256
 
 	// 用于表示还未设置服务模板的情况，比如没有绑定服务模板
 	ServiceTemplateIDNotSet = 0
@@ -1207,7 +1282,10 @@ const (
 	OperationDescription = "op_desc"
 	OptionOther          = "其他"
 	TimerPattern         = "^[\\d]+\\:[\\d]+$"
-	SyncSetTaskName      = "sync-settemplate2set"
+	// BKTaskTypeField the api task type field
+	BKTaskTypeField    = "task_type"
+	SyncSetTaskFlag    = "set_template_sync"
+	SyncModuleTaskFlag = "service_template_sync"
 
 	BKHostState = "bk_state"
 )
@@ -1261,4 +1339,9 @@ const (
 // configcenter
 const (
 	BKDefaultConfigCenter = "zookeeper"
+)
+
+const (
+	CCLogicUniqueIdxNamePrefix = "bkcc_unique_"
+	CCLogicIndexNamePrefix     = "bkcc_idx_"
 )
