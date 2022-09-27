@@ -598,6 +598,10 @@ const (
 
 	// BKModuleTypeField the module type field
 	BKModuleTypeField = "bk_module_type"
+	BKModuleVersionIDField = "version"
+
+	BKServiceTemplateVersionField = "version"
+	BKServiceTemplateAttrVersionField = "version"
 
 	// BKOrgIPField the org ip field
 	BKOrgIPField = "bk_org_ip"

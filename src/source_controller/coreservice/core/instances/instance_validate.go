@@ -184,6 +184,10 @@ func (m *instanceManager) validCreateInstanceData(kit *rest.Kit, objID string, i
 			blog.V(9).Infof("skip verify filed: %s, rid: %s", key, kit.Rid)
 			continue
 		}
+		if key == common.BKModuleVersionIDField {
+			blog.V(9).Infof("skip verify filed: %s, rid: %s", key, kit.Rid)
+			continue
+		}
 		if util.InStrArr(createIgnoreKeys, key) {
 			// ignore the key field
 			continue

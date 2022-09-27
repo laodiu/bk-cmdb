@@ -118,6 +118,41 @@ func (lgc *Logic) GetSvcTempSyncStatus(kit *rest.Kit, bizID int64, moduleFilter 
 	return svcTempSyncStatuses, moduleSyncStatuses, nil
 }
 
+// GetServiceTempSyncStatus 获取服务模板的同步状态
+func (lgc *Logic) GetServiceTempSyncStatus(kit *rest.Kit, bizID int64, serviceTemplate metadata.ServiceTemplate) (
+	metadata.SvcTempSyncStatus, error) {
+	svcTempSyncStatuses := metadata.SvcTempSyncStatus{}
+	svcTempSyncStatuses.ServiceTemplateID = serviceTemplate.ID
+	svcTempSyncStatuses.NeedSync = false
+
+	input := &metadata.QueryCondition{
+		Page: metadata.BasePage{
+			Limit: common.BKNoLimit,
+		},
+		Condition: mapstr.MapStr{common.BKServiceTemplateIDField: serviceTemplate.ID},
+	}
+	result, err := lgc.CoreAPI.CoreService().Instance().ReadInstance(kit.Ctx, kit.Header, common.BKInnerObjIDModule,
+		input)
+	if err != nil {
+		blog.Errorf("get module inst list failed, input: %+v, err: %v, rid: %s", input, err, kit.Rid)
+		return metadata.SvcTempSyncStatus{}, err
+	}
+
+	for _, module := range result.Info {
+		version, err := module.Int64(common.BKModuleVersionIDField)
+		if err != nil {
+			blog.Errorf("get module version value failed, module: %+v, err: %v, rid: %s", module, err, kit.Rid)
+			return metadata.SvcTempSyncStatus{}, err
+		}
+		if serviceTemplate.Version != version {
+			svcTempSyncStatuses.NeedSync = true
+			return svcTempSyncStatuses, nil
+		}
+	}
+
+	return svcTempSyncStatuses, nil
+}
+
 func getModuleNameAndID(kit *rest.Kit, module mapstr.MapStr) (string, int64, errors.CCErrorCoder) {
 
 	moduleName := util.GetStrByInterface(module[common.BKModuleNameField])

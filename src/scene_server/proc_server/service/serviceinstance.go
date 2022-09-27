@@ -1867,6 +1867,23 @@ func (ps *ProcServer) SyncServiceInstanceByTemplate(ctx *rest.Contexts) {
 			return err
 		}
 		blog.V(4).Infof("successfully created service template sync task: %#v, rid: %s", taskRes, ctx.Kit.Rid)
+
+		// 同步成功，将模块的version值同步为template的值
+		template, err := ps.CoreAPI.CoreService().Process().GetServiceTemplate(ctx.Kit.Ctx, ctx.Kit.Header,
+			syncOpt.ServiceTemplateID)
+		if err != nil {
+			ctx.RespWithError(err, common.CCErrCommHTTPDoRequestFailed, "get service template failed, err: %v", err)
+			return err
+		}
+		input := &metadata.UpdateOption{
+			Data:      mapstr.MapStr{common.BKModuleVersionIDField: template.Version},
+			Condition: mapstr.MapStr{common.BKModuleIDField: mapstr.MapStr{common.BKDBIN: syncOpt.ModuleIDs}},
+		}
+		if _, err := ps.CoreAPI.CoreService().Instance().UpdateInstance(ctx.Kit.Ctx, ctx.Kit.Header,
+			common.BKInnerObjIDModule, input); err != nil {
+			ctx.RespAutoError(err)
+			return err
+		}
 		return nil
 	})
 

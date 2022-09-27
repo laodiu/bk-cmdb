@@ -96,6 +96,7 @@ func (ps *ProcServer) CreateServiceTemplateAllInfo(ctx *rest.Contexts) {
 			BizID:             option.BizID,
 			Name:              option.Name,
 			ServiceCategoryID: option.ServiceCategoryID,
+			Version:           0,
 		}
 
 		tpl, err := ps.CoreAPI.CoreService().Process().CreateServiceTemplate(ctx.Kit.Ctx, ctx.Kit.Header, template)
@@ -724,6 +725,7 @@ func (ps *ProcServer) DeleteHostApplyRule(ctx *rest.Contexts) {
 	ctx.RespEntity(nil)
 
 }
+
 func (ps *ProcServer) UpdateServiceTemplate(ctx *rest.Contexts) {
 	option := new(metadata.UpdateServiceTemplateOption)
 	if err := ctx.DecodeInto(option); err != nil {
@@ -793,6 +795,10 @@ func (ps *ProcServer) UpdateServiceTemplateAllInfo(ctx *rest.Contexts) {
 		// update process templates
 		err = ps.updateSvcTempAllProcTemps(ctx.Kit, allInfo.ID, allInfo.BizID, allInfo.Processes, option.Processes)
 		if err != nil {
+			return err
+		}
+		if err := ps.updateServiceTemplVersion(ctx, ctx.Kit.Header, allInfo.ID); err != nil {
+			ctx.RespAutoError(err)
 			return err
 		}
 		return nil
@@ -979,6 +985,76 @@ func (ps *ProcServer) ListServiceTemplates(ctx *rest.Contexts) {
 	ctx.RespEntity(temp)
 }
 
+// ListServiceTemplatesWithStatus get service template list with sync status
+func (ps *ProcServer) ListServiceTemplatesWithStatus(ctx *rest.Contexts) {
+	input := new(metadata.ListServiceTemplateInput)
+	if err := ctx.DecodeInto(input); err != nil {
+		ctx.RespAutoError(err)
+		return
+	}
+
+	option := metadata.ListServiceTemplateOption{
+		BusinessID:         input.BizID,
+		Page:               metadata.BasePage{Start: 0, Limit: common.BKNoLimit},
+		ServiceCategoryID:  &input.ServiceCategoryID,
+		Search:             input.Search,
+		IsExact:            input.IsExact,
+		ServiceTemplateIDs: input.ServiceTemplateIDs,
+	}
+	// 获取到满足条件的数据
+	temp, err := ps.CoreAPI.CoreService().Process().ListServiceTemplates(ctx.Kit.Ctx, ctx.Kit.Header, &option)
+	if err != nil {
+		ctx.RespWithError(err, common.CCErrCommHTTPDoRequestFailed, "list service template failed, input: %+v", input)
+		return
+	}
+	needSync := make([]metadata.ServiceTemplateWithStatus, 0)
+	notNeedSync := make([]metadata.ServiceTemplateWithStatus, 0)
+	// 计算服务模板是否需要同步
+	for _, serviceTemplate := range temp.Info {
+		oneResult, err := ps.Logic.GetServiceTempSyncStatus(ctx.Kit, input.BizID, serviceTemplate)
+		if err != nil {
+			blog.Errorf("get service template sync status failed, bizID: %d, serviceTemplate: %+v, err: %v, "+
+				"rid: %s", input.BizID, serviceTemplate, err, ctx.Kit.Rid)
+			ctx.RespAutoError(err)
+			return
+		}
+
+		if oneResult.NeedSync {
+			needSync = append(needSync, metadata.ServiceTemplateWithStatus{
+				ServiceTemplate: serviceTemplate,
+				NeedSync: oneResult.NeedSync,
+			})
+		} else {
+			notNeedSync = append(notNeedSync, metadata.ServiceTemplateWithStatus{
+				ServiceTemplate: serviceTemplate,
+				NeedSync: oneResult.NeedSync,
+			})
+		}
+	}
+	// 排序
+	sort.SliceStable(needSync, func(i, j int) bool {
+		return needSync[i].ServiceTemplate.ID > needSync[j].ServiceTemplate.ID
+	})
+	sort.SliceStable(notNeedSync, func(i, j int) bool {
+		return notNeedSync[i].ServiceTemplate.ID > notNeedSync[j].ServiceTemplate.ID
+	})
+
+	// 根据页码返回数据
+	result := &metadata.MultipleServiceTemplateWithStatus{
+		Count: temp.Count,
+	}
+	sevTemplates := make([]metadata.ServiceTemplateWithStatus, 0)
+	sevTemplates = append(sevTemplates, needSync...)
+	sevTemplates = append(sevTemplates, notNeedSync...)
+	if input.Page.Limit + input.Page.Start < int(temp.Count) {
+		result.Info = sevTemplates[input.Page.Start:input.Page.Limit + input.Page.Start]
+	} else {
+		result.Info = sevTemplates[input.Page.Start:temp.Count]
+	}
+
+	ctx.RespEntity(result)
+}
+
 // FindServiceTemplateCountInfo find count info of service templates
 func (ps *ProcServer) FindServiceTemplateCountInfo(ctx *rest.Contexts) {
 	bizID, err := strconv.ParseInt(ctx.Request.PathParameter(common.BKAppIDField), 10, 64)
@@ -1058,7 +1134,7 @@ func (ps *ProcServer) FindServiceTemplateCountInfo(ctx *rest.Contexts) {
 	ctx.RespEntity(result)
 }
 
-// a service template can be delete only when it is not be used any more,
+// DeleteServiceTemplate a service template can be delete only when it is not be used any more,
 // which means that no process instance belongs to it.
 func (ps *ProcServer) DeleteServiceTemplate(ctx *rest.Contexts) {
 	input := new(metadata.DeleteServiceTemplatesInput)
@@ -1092,72 +1168,35 @@ func (ps *ProcServer) GetServiceTemplateSyncStatus(ctx *rest.Contexts) {
 		return
 	}
 
-	opt := new(metadata.GetServiceTemplateSyncStatusOption)
-	if err := ctx.DecodeInto(opt); err != nil {
+	// 获取所有服务模板, 判断是否需要同步
+	option := &metadata.ListServiceTemplateOption{
+		BusinessID: bizID,
+		Page: metadata.BasePage{
+			Limit: common.BKNoLimit,
+		},
+	}
+	result, err := ps.CoreAPI.CoreService().Process().ListServiceTemplates(ctx.Kit.Ctx, ctx.Kit.Header, option)
+	if err != nil {
+		blog.Errorf("get service template list failed, option: %+v, err: %v, rid: %s", option, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
-		return
 	}
 
-	const maxIDLen = 100
-	if opt.IsPartial {
-		if len(opt.ServiceTemplateIDs) == 0 {
-			ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsNeedSet, "service_template_ids"))
-			return
-		}
-
-		if len(opt.ServiceTemplateIDs) > maxIDLen {
-			ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommXXExceedLimit, "service_template_ids", maxIDLen))
-			return
-		}
-
-		moduleCond := map[string]interface{}{
-			common.BKAppIDField: bizID,
-			common.BKServiceTemplateIDField: map[string]interface{}{
-				common.BKDBIN: opt.ServiceTemplateIDs,
-			},
-		}
-
-		statuses, _, err := ps.Logic.GetSvcTempSyncStatus(ctx.Kit, bizID, moduleCond, true)
+	batchResult := make([]metadata.SvcTempSyncStatus, 0)
+	for _, serviceTemplate := range result.Info {
+		oneResult, err := ps.Logic.GetServiceTempSyncStatus(ctx.Kit, bizID, serviceTemplate)
 		if err != nil {
+			blog.Errorf("get service template sync status failed, bizID: %d, serviceTemplate: %+v, err: %v, "+
+				"rid: %s", bizID, serviceTemplate, err, ctx.Kit.Rid)
 			ctx.RespAutoError(err)
 			return
 		}
-
-		ctx.RespEntity(metadata.ServiceTemplateSyncStatus{ServiceTemplates: statuses})
-		return
-	} else {
-		if len(opt.ModuleIDs) == 0 {
-			ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsNeedSet, "bk_module_ids"))
-			return
-		}
-
-		if len(opt.ModuleIDs) > maxIDLen {
-			ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommXXExceedLimit, "bk_module_ids", maxIDLen))
-			return
-		}
-
-		moduleCond := map[string]interface{}{
-			common.BKModuleIDField: map[string]interface{}{
-				common.BKDBIN: opt.ModuleIDs,
-			},
-			common.BKAppIDField: bizID,
-			common.BKServiceTemplateIDField: map[string]interface{}{
-				common.BKDBNE: common.ServiceTemplateIDNotSet,
-			},
-		}
-
-		_, statuses, err := ps.Logic.GetSvcTempSyncStatus(ctx.Kit, bizID, moduleCond, false)
-		if err != nil {
-			ctx.RespAutoError(err)
-			return
-		}
-
-		ctx.RespEntity(metadata.ServiceTemplateSyncStatus{Modules: statuses})
-		return
+		batchResult = append(batchResult, oneResult)
 	}
+
+	ctx.RespEntity(batchResult)
 }
 
-// SearchRuleRelatedServiceTemplate search rule related service templates
+// SearchRuleRelatedServiceTemplates search rule related service templates
 func (ps *ProcServer) SearchRuleRelatedServiceTemplates(ctx *rest.Contexts) {
 	requestBody := new(metadata.RuleRelatedServiceTemplateOption)
 	if err := ctx.DecodeInto(requestBody); err != nil {
@@ -1213,6 +1252,11 @@ func (ps *ProcServer) UpdateServiceTemplateAttribute(ctx *rest.Contexts) {
 			option); err != nil {
 			return err
 		}
+
+		if err := ps.updateServiceTemplVersion(ctx, ctx.Kit.Header, option.ID); err != nil {
+			ctx.RespAutoError(err)
+			return err
+		}
 		return nil
 	})
 
@@ -1243,6 +1287,10 @@ func (ps *ProcServer) DeleteServiceTemplateAttribute(ctx *rest.Contexts) {
 			return err
 		}
 
+		if err := ps.updateServiceTemplVersion(ctx, ctx.Kit.Header, option.ID); err != nil {
+			ctx.RespAutoError(err)
+			return err
+		}
 		return nil
 	})
 

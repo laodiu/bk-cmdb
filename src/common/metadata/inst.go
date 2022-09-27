@@ -47,6 +47,7 @@ type ModuleInst struct {
 	SetTemplateID     int64  `bson:"set_template_id" json:"set_template_id" field:"set_template_id" mapstructure:"set_template_id"`
 	Default           int64  `bson:"default" json:"default" field:"default" mapstructure:"default"`
 	HostApplyEnabled  bool   `bson:"host_apply_enabled" json:"host_apply_enabled" field:"host_apply_enabled" mapstructure:"host_apply_enabled"`
+	Version           int64  `bson:"version" json:"version" field:"version" mapstructure:"version"`
 	Creator           string `bson:"creator" json:"creator" field:"creator" mapstructure:"creator"`
 	CreateTime        Time   `bson:"create_time" json:"create_time"`
 	LastTime          Time   `bson:"last_time" json:"last_time"`

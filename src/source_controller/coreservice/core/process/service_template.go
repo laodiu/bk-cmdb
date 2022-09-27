@@ -125,6 +125,9 @@ func (p *processOperation) validateServiceCategoryID(kit *rest.Kit, template *me
 	if serviceCategoryID == 0 {
 		return nil
 	}
+	if  template.ServiceCategoryID != serviceCategoryID {
+		template.Version += 1
+	}
 	template.ServiceCategoryID = serviceCategoryID
 
 	// validate service category id field

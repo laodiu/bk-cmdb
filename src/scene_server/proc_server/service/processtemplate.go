@@ -13,6 +13,7 @@
 package service
 
 import (
+	"net/http"
 	"strconv"
 
 	"configcenter/src/ac/meta"
@@ -22,7 +23,7 @@ import (
 	"configcenter/src/common/metadata"
 )
 
-// create a process template for a service template.
+// CreateProcessTemplateBatch a process template for a service template.
 func (ps *ProcServer) CreateProcessTemplateBatch(ctx *rest.Contexts) {
 	input := new(metadata.CreateProcessTemplateBatchInput)
 	if err := ctx.DecodeInto(input); err != nil {
@@ -64,6 +65,12 @@ func (ps *ProcServer) CreateProcessTemplateBatch(ctx *rest.Contexts) {
 			}
 
 			ids = append(ids, temp.ID)
+		}
+
+		// 更新服务模板version的值
+		if err := ps.updateServiceTemplVersion(ctx, ctx.Kit.Header, input.ServiceTemplateID); err != nil {
+			ctx.RespAutoError(err)
+			return err
 		}
 		return nil
 	})
@@ -121,6 +128,14 @@ func (ps *ProcServer) DeleteProcessTemplateBatch(ctx *rest.Contexts) {
 			blog.Errorf("delete process template: %v failed", input.ProcessTemplates)
 			return ctx.Kit.CCError.CCError(common.CCErrProcDeleteTemplateFail)
 		}
+
+		// 更新服务模板version的值
+		for _, templateID := range serviceTemplateIDs {
+			if err := ps.updateServiceTemplVersion(ctx, ctx.Kit.Header, templateID); err != nil {
+				ctx.RespAutoError(err)
+				return err
+			}
+		}
 		return nil
 	})
 
@@ -174,6 +189,13 @@ func (ps *ProcServer) UpdateProcessTemplate(ctx *rest.Contexts) {
 			blog.Errorf("update process template: %v failed.", input)
 			return ctx.Kit.CCError.CCError(common.CCErrProcUpdateProcessTemplateFailed)
 		}
+		for _, templateID := range serviceTemplateIDs {
+			if err = ps.updateServiceTemplVersion(ctx, ctx.Kit.Header, templateID); err != nil {
+				ctx.RespAutoError(err)
+				return err
+			}
+		}
+
 		return nil
 	})
 
@@ -239,4 +261,20 @@ func (ps *ProcServer) ListProcessTemplate(ctx *rest.Contexts) {
 		return
 	}
 	ctx.RespEntity(template)
+}
+
+func (ps *ProcServer) updateServiceTemplVersion(ctx *rest.Contexts, h http.Header, templateID int64) error {
+	template, err := ps.CoreAPI.CoreService().Process().GetServiceTemplate(ctx.Kit.Ctx, h, templateID)
+	if err != nil {
+		blog.Errorf("get service template failed, templateID: %d, err: %v, rid: %s", templateID, err, ctx.Kit.Rid)
+		return err
+	}
+
+	template.Version += 1
+	if _, err := ps.CoreAPI.CoreService().Process().UpdateServiceTemplate(ctx.Kit.Ctx, h, templateID,
+		template); err != nil {
+		blog.Errorf("update service template version value failed, err: %v, rid: %s", err, ctx.Kit.Rid)
+		return err
+	}
+	return nil
 }

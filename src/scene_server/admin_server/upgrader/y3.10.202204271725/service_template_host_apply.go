@@ -31,6 +31,25 @@ func addServiceTemplateTableColumn(ctx context.Context, db dal.RDB, conf *upgrad
 		blog.Errorf("add host_apply_enabled column to service template failed, err: %v", err)
 		return err
 	}
+
+	err = db.Table(common.BKTableNameServiceTemplate).AddColumn(ctx, common.BKServiceTemplateVersionField, 0)
+	if err != nil {
+		blog.Errorf("add version column to service template failed, err: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// addModuleBaseTableColumn add version field to module base table.
+func addModuleBaseTableColumn(ctx context.Context, db dal.RDB, conf *upgrader.Config) error {
+
+	err := db.Table(common.BKTableNameBaseModule).AddColumn(ctx, common.BKModuleVersionIDField, 0)
+	if err != nil {
+		blog.Errorf("add host_apply_enabled column to service template failed, err: %v", err)
+		return err
+	}
+
 	return nil
 }
 

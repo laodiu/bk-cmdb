@@ -392,6 +392,11 @@ type MultipleServiceTemplate struct {
 	Info  []ServiceTemplate `json:"info"`
 }
 
+type MultipleServiceTemplateWithStatus struct {
+	Count uint64            `json:"count"`
+	Info  []ServiceTemplateWithStatus `json:"info"`
+}
+
 type ListServiceInstanceOption struct {
 	BusinessID         int64              `json:"bk_biz_id"`
 	ServiceTemplateID  int64              `json:"service_template_id"`

@@ -1010,6 +1010,8 @@ type ServiceTemplate struct {
 	// name of this service, can not be empty
 	Name string `field:"name" json:"name" bson:"name"`
 
+	Version int64 `field:"version" json:"version" bson:"version"`
+
 	// the class of this service, each field means a class label.
 	// now, the class must have two labels.
 	ServiceCategoryID int64 `field:"service_category_id" json:"service_category_id" bson:"service_category_id"`
@@ -1020,6 +1022,11 @@ type ServiceTemplate struct {
 	LastTime         time.Time `field:"last_time" json:"last_time" bson:"last_time"`
 	SupplierAccount  string    `field:"bk_supplier_account" json:"bk_supplier_account" bson:"bk_supplier_account"`
 	HostApplyEnabled bool      `field:"host_apply_enabled" json:"host_apply_enabled" bson:"host_apply_enabled"`
+}
+
+type ServiceTemplateWithStatus struct {
+	ServiceTemplate  ServiceTemplate   `field:"service_template" json:"service_template" bson:"service_template" mapstructure:"service_template"`
+	NeedSync bool `field:"need_sync" json:"need_sync" bson:"need_sync"`
 }
 
 func (st *ServiceTemplate) Validate(errProxy cErr.DefaultCCErrorIf) (field string, err error) {

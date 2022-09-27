@@ -37,6 +37,11 @@ func upgrade(ctx context.Context, db dal.RDB, conf *upgrader.Config) (err error)
 		return err
 	}
 
+	if err = addModuleBaseTableColumn(ctx, db, conf); err != nil {
+		blog.Errorf("upgrade y3.10.202204271725 add module base table column failed, err: %v", err)
+		return err
+	}
+
 	blog.Infof("upgrade y3.10.202204271725 success")
 	return nil
 }

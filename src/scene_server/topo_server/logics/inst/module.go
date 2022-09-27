@@ -151,6 +151,7 @@ func (m *module) validBizSetID(kit *rest.Kit, bizID int64, setID int64) error {
 func (m *module) CreateModule(kit *rest.Kit, bizID, setID int64, data mapstr.MapStr) (mapstr.MapStr, error) {
 	data.Set(common.BKSetIDField, setID)
 	data.Set(common.BKAppIDField, bizID)
+	data.Set(common.BKModuleVersionIDField, 0)
 	if !data.Exists(common.BKDefaultField) {
 		data.Set(common.BKDefaultField, common.DefaultFlagDefaultValue)
 	}
@@ -167,6 +168,16 @@ func (m *module) CreateModule(kit *rest.Kit, bizID, setID int64, data mapstr.Map
 	serviceTemplateID, serviceCategoryID, err := m.checkModuleServiceTemplate(kit, bizID, defaultVal, data)
 	if err != nil {
 		return nil, err
+	}
+
+	if serviceTemplateID > 0 {
+		template, err := m.clientSet.CoreService().Process().GetServiceTemplate(kit.Ctx, kit.Header, serviceTemplateID)
+		if err != nil {
+			blog.Errorf("get service template failed, serviceTemplateID: %d, err: %v, rid: %s", serviceTemplateID,
+				err, kit.Rid)
+			return nil, err
+		}
+		data.Set(common.BKModuleVersionIDField, template.Version)
 	}
 
 	data.Set(common.BKServiceCategoryIDField, serviceCategoryID)
