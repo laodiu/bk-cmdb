@@ -53,12 +53,14 @@ type ModuleInst struct {
 	LastTime          Time   `bson:"last_time" json:"last_time"`
 }
 
+// BizInst TODO
 type BizInst struct {
 	BizID           int64  `bson:"bk_biz_id" mapstructure:"bk_biz_id"`
 	BizName         string `bson:"bk_biz_name" mapstructure:"bk_biz_name"`
 	SupplierAccount string `bson:"bk_supplier_account" mapstructure:"bk_supplier_account"`
 }
 
+// BizBasicInfo TODO
 type BizBasicInfo struct {
 	BizID   int64  `bson:"bk_biz_id" json:"bk_biz_id" field:"bk_biz_id" mapstructure:"bk_biz_id"`
 	BizName string `bson:"bk_biz_name" json:"bk_biz_name" field:"bk_biz_name" mapstructure:"bk_biz_name"`
@@ -77,11 +79,13 @@ type BizSetInst struct {
 	Default          int64       `json:"default" bson:"default"`
 }
 
+// CloudInst TODO
 type CloudInst struct {
 	CloudID   int64  `bson:"bk_cloud_id" json:"bk_cloud_id"`
 	CloudName string `bson:"bk_cloud_name" json:"bk_cloud_name"`
 }
 
+// ProcessInst TODO
 type ProcessInst struct {
 	ProcessID       int64  `json:"bk_process_id" bson:"bk_process_id"`               // 进程名称
 	ProcessName     string `json:"bk_process_name" bson:"bk_process_name"`           // 进程名称
@@ -92,6 +96,7 @@ type ProcessInst struct {
 	StartParamRegex string `json:"bk_start_param_regex" bson:"bk_start_param_regex"` // 启动参数匹配规则
 }
 
+// HostIdentifier TODO
 type HostIdentifier struct {
 	HostID          int64                       `json:"bk_host_id" bson:"bk_host_id"`
 	CloudID         int64                       `json:"bk_cloud_id" bson:"bk_cloud_id"`
@@ -102,6 +107,7 @@ type HostIdentifier struct {
 	Process         []HostIdentProcess          `json:"process" bson:"process"`
 }
 
+// HostIdentProcess TODO
 type HostIdentProcess struct {
 	ProcessID   int64  `json:"bk_process_id" bson:"bk_process_id"`     // 进程名称
 	ProcessName string `json:"bk_process_name" bson:"bk_process_name"` // 进程名称
@@ -127,6 +133,7 @@ type HostIdentModule struct {
 	Layer    *Layer `json:"layer"`        // 自定义层级
 }
 
+// Layer TODO
 type Layer struct {
 	InstID   int64  `json:"bk_inst_id"`
 	InstName string `json:"bk_inst_name"`
@@ -134,6 +141,7 @@ type Layer struct {
 	Child    *Layer `json:"child"`
 }
 
+// MainlineInstInfo TODO
 type MainlineInstInfo struct {
 	InstID   int64  `json:"bk_inst_id" bson:"bk_inst_id"`
 	InstName string `json:"bk_inst_name" bson:"bk_inst_name"`
@@ -152,11 +160,13 @@ type SearchHostIdentifierParam struct {
 	HostIDs []int64 `json:"host_ids"`
 }
 
+// IPParam TODO
 type IPParam struct {
 	Data    []string `json:"data"`
 	CloudID *int64   `json:"bk_cloud_id"`
 }
 
+// SearchHostIdentifierResult TODO
 type SearchHostIdentifierResult struct {
 	BaseResp `json:",inline"`
 	Data     SearchHostIdentifierData `json:"data"`
@@ -198,6 +208,7 @@ type UpdateBizPropertyBatchParameter struct {
 	Condition map[string]interface{} `json:"condition"`
 }
 
+// ObjsForSearchName TODO
 var ObjsForSearchName = map[string]bool{
 	common.BKInnerObjIDSet:    true,
 	common.BKInnerObjIDModule: true,
@@ -229,24 +240,25 @@ func (o *SearchInstsNamesOption) Validate() (rawError errors.RawErrorInfo) {
 	return errors.RawErrorInfo{}
 }
 
-//CreateManyCommInst parameters for creating multiple instances
+// CreateManyCommInst parameters for creating multiple instances
 type CreateManyCommInst struct {
 	ObjID   string          `json:"bk_obj_id"`
 	Details []mapstr.MapStr `json:"details"`
 }
 
-//CreateManyCommInstResult result of creating multiple instances
+// CreateManyCommInstResult result of creating multiple instances
 type CreateManyCommInstResult struct {
 	BaseResp `json:",inline"`
 	Data     CreateManyCommInstResultDetail `json:"data"`
 }
 
-//CreateManyCommInstResultDetail details of CreateManyInstancesResult
+// CreateManyCommInstResultDetail details of CreateManyInstancesResult
 type CreateManyCommInstResultDetail struct {
 	SuccessCreated map[int64]int64  `json:"success_created"`
 	Error          map[int64]string `json:"error_msg"`
 }
 
+// NewManyCommInstResultDetail TODO
 func NewManyCommInstResultDetail() *CreateManyCommInstResultDetail {
 	return &CreateManyCommInstResultDetail{
 		SuccessCreated: make(map[int64]int64, 0),
