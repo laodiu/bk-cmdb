@@ -636,6 +636,8 @@ const (
 
 	// BKIsOnlyField the isonly name field
 	BKIsOnlyField = "isonly"
+	// BKIsMultipleField the is multiple name field
+	BKIsMultipleField = "ismultiple"
 	// BKGseTaskIDField the gse taskid
 	BKGseTaskIDField = "task_id"
 	// BKTaskIDField the gse taskid
@@ -868,6 +870,12 @@ const (
 
 	// FieldTypeEnum the enum field type
 	FieldTypeEnum string = "enum"
+
+	// FieldTypeEnumMulti the enum multi field type
+	FieldTypeEnumMulti string = "enummulti"
+
+	// FieldTypeEnumQuote the enum quote field type
+	FieldTypeEnumQuote string = "enumquote"
 
 	// FieldTypeDate the date field type
 	FieldTypeDate string = "date"
