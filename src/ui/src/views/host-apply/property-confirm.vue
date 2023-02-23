@@ -1,19 +1,33 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="confirm-wrapper">
     <top-steps :current="2" />
     <div class="host-apply-confirm">
       <div class="update-options">
         <div class="option-label">
-          <i18n path="同时更新失效主机">
-            <span place="invalid" class="has-tips" v-bk-tooltips="$t('属性当前值与目标值不一致的主机')">{{$t('-失效主机')}}</span>
+          <i18n path="同时更新未应用主机">
+            <template #invalid>
+              <span class="has-tips" v-bk-tooltips="$t('属性当前值与目标值不一致的主机')">{{$t('-未应用主机')}}</span>
+            </template>
           </i18n>
         </div>
         <bk-radio-group class="option-content" v-model="updateOption.changed">
           <bk-radio :value="true">
-            {{$t('是将把失效主机更新为当前的配置')}}
+            {{$t('是将把未应用主机更新为当前的配置')}}
           </bk-radio>
           <bk-radio :value="false">
-            {{$t('否将保留失效主机的配置')}}
+            {{$t('否将保留未应用主机的配置')}}
           </bk-radio>
         </bk-radio-group>
       </div>
@@ -25,11 +39,11 @@
               <i class="bk-cc-icon icon-cc-tips"></i>
             </span>
             <i18n path="冲突主机N台">
-              <em place="num" class="conflict-num">{{conflictNum}}</em>
+              <template #num><em class="conflict-num">{{conflictNum}}</em></template>
             </i18n>
           </span>
           <i18n path="主机总数N台">
-            <em place="num" class="check-num">{{totalNum}}</em>
+            <template #num><em class="check-num">{{totalNum}}</em></template>
           </i18n>
         </div>
       </div>
@@ -62,7 +76,7 @@
       v-bind="leaveConfirmConfig"
       reverse
       :title="$t('是否退出配置')"
-      :content="$t('启用步骤未完成，退出将会丢失当前配置')"
+      :content="$t('启用步骤未完成，退出将撤销当前操作')"
       :ok-text="$t('退出')"
       :cancel-text="$t('取消')">
     </leave-confirm>
@@ -79,7 +93,7 @@
     MENU_BUSINESS_HOST_APPLY_EDIT,
     MENU_BUSINESS_HOST_APPLY_RUN
   } from '@/dictionary/menu-symbol'
-  import { CONFIG_MODE } from '@/services/service-template/index.js'
+  import { CONFIG_MODE } from '@/service/service-template/index.js'
 
   export default {
     components: {

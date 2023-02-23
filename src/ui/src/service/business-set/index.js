@@ -1,3 +1,15 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import http from '@/api'
 import { BUILTIN_MODELS, BUILTIN_MODEL_PROPERTY_KEYS } from '@/dictionary/model-constants.js'
 import { enableCount, onePageParams } from '../utils.js'
@@ -11,7 +23,7 @@ const find = async (params, config) => {
       http.post('findmany/biz_set', enableCount(params, false), config),
       http.post('findmany/biz_set', enableCount(params, true), config)
     ])
-    return { count, list }
+    return { count: count || 0, list: list || [] }
   } catch (error) {
     console.error(error)
     return Promise.reject(error)
@@ -44,7 +56,7 @@ const findOne = async (params, config = {}) => findById(params[MODEL_ID_KEY], co
 const getAuthorized = async (config) => {
   try {
     const { info: list = [] } = await http.get('findmany/biz_set/with_reduced?sort=bk_biz_set_id', config)
-    return list
+    return list || []
   } catch (error) {
     console.error(error)
     return []
@@ -62,7 +74,7 @@ const previewOfBeforeCreate = async (params, config) => {
       http.post('find/biz_set/preview', enableCount(params, false), config),
       http.post('find/biz_set/preview', enableCount(params, true), config)
     ])
-    return { count, list }
+    return { count: count || 0, list: list || [] }
   } catch (error) {
     console.error(error)
     return { count: 0, list: [] }
@@ -75,7 +87,7 @@ const previewOfAfterCreate = async (params, config) => {
       http.post('find/biz_set/biz_list', enableCount(params, false), config),
       http.post('find/biz_set/biz_list', enableCount(params, true), config)
     ])
-    return { count, list }
+    return { count: count || 0, list: list || [] }
   } catch (error) {
     console.error(error)
     return { count: 0, list: [] }
@@ -90,6 +102,8 @@ const deleteById = (id, config) => http.post('deletemany/biz_set', {
   bk_biz_set_ids: [id]
 }, config)
 
+const getAll = config => http.get('findmany/biz_set/simplify', config)
+
 export default {
   find,
   findById,
@@ -97,6 +111,7 @@ export default {
   create,
   update,
   deleteById,
+  getAll,
   previewOfBeforeCreate,
   previewOfAfterCreate,
   getAuthorized,

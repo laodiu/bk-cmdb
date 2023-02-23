@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="resource-layout clearfix">
     <bk-tab
@@ -32,6 +44,7 @@
 </template>
 
 <script>
+  import FilterStore from '@/components/filters/store'
   import resourceDirectory from './children/directory.vue'
   import resourceHosts from './children/host-list.vue'
   import Bus from '@/utils/bus.js'
@@ -68,6 +81,14 @@
       handleTabChange(tab) {
         Bus.$emit('toggle-host-filter', false)
         Bus.$emit('reset-host-filter')
+
+        // 设置scope
+        FilterStore.setResourceScope(tab)
+
+        // 此时selected为上一个scope的，需要清空，在setupNormalProperty方法中会使用在设置条件时已保存的值
+        FilterStore.updateSelected([])
+        FilterStore.setupNormalProperty()
+
         RouterQuery.set({
           scope: isNaN(tab) ? tab : parseInt(tab, 10),
           ip: '',

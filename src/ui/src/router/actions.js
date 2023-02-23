@@ -1,7 +1,21 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import has from 'has'
 import router from './index'
 import { Base64 } from 'js-base64'
+import merge from 'lodash/merge'
 import { MENU_BUSINESS } from '@/dictionary/menu-symbol'
+
 export const redirect = function ({ name, params = {}, query = {}, history = false, reload = false, back = false }) {
   const queryBackup = { ...query }
   const currentRoute = router.app.$route
@@ -70,7 +84,7 @@ export const redirect = function ({ name, params = {}, query = {}, history = fal
   }
 }
 
-export const back = function () {
+export const back = function (customRoute = {}) {
   let record
   if (has(router.app.$route.query, '_f')) {
     try {
@@ -83,7 +97,7 @@ export const back = function () {
   if (record) {
     try {
       const route = JSON.parse(Base64.decode(record))
-      redirect({ ...route, back: true })
+      redirect(merge(route, customRoute, { back: true }))
     } catch (error) {
       router.go(-1)
     }

@@ -12,8 +12,10 @@
 
 package meta
 
+// ResourceType TODO
 type ResourceType string
 
+// String 用于打印
 func (r ResourceType) String() string {
 	return string(r)
 }
@@ -64,18 +66,71 @@ const (
 	ConfigAdmin              ResourceType = "configAdmin"
 )
 
+// kube related auth resource in CMDB
 const (
+	// KubeCluster auth resource type in CMDB
+	KubeCluster ResourceType = "kube_cluster"
+
+	// KubeNode auth resource type in CMDB
+	KubeNode ResourceType = "kube_node"
+
+	// KubeNamespace auth resource type in CMDB
+	KubeNamespace ResourceType = "kube_namespace"
+
+	// KubeWorkload auth resource type in CMDB, including deployment, statefulSet, daemonSet ...
+	KubeWorkload ResourceType = "kube_workload"
+
+	// KubePod auth resource type in CMDB
+	KubePod ResourceType = "kube_pod"
+
+	// KubeContainer auth resource type in CMDB
+	KubeContainer ResourceType = "kube_container"
+
+	// below are specific workload auth resource types in CMDB, reserved for later use
+
+	// KubeDeployment auth resource type in CMDB
+	KubeDeployment ResourceType = "kube_deployment"
+
+	// KubeStatefulSet auth resource type in CMDB
+	KubeStatefulSet ResourceType = "kube_statefulSet"
+
+	// KubeDaemonSet auth resource type in CMDB
+	KubeDaemonSet ResourceType = "kube_daemonSet"
+
+	// KubeGameStatefulSet auth resource type in CMDB
+	KubeGameStatefulSet ResourceType = "kube_gameStatefulSet"
+
+	// KubeGameDeployment auth resource type in CMDB
+	KubeGameDeployment ResourceType = "kube_gameDeployment"
+
+	// KubeCronJob auth resource type in CMDB
+	KubeCronJob ResourceType = "kube_cronJob"
+
+	// KubeJob auth resource type in CMDB
+	KubeJob ResourceType = "kube_job"
+
+	// KubePodWorkload pod workload auth resource type in CMDB
+	KubePodWorkload ResourceType = "kube_pods"
+)
+
+const (
+	// CMDBSysInstTypePrefix TODO
 	// CMDB侧资源的通用模型实例前缀标识
 	CMDBSysInstTypePrefix = "comobj_"
 )
 
 const (
+	// NetCollector TODO
 	NetCollector = "netCollector"
-	NetDevice    = "netDevice"
-	NetProperty  = "netProperty"
-	NetReport    = "netReport"
+	// NetDevice TODO
+	NetDevice = "netDevice"
+	// NetProperty TODO
+	NetProperty = "netProperty"
+	// NetReport TODO
+	NetReport = "netReport"
 )
 
+// ResourceDescribe TODO
 type ResourceDescribe struct {
 	Type    ResourceType
 	Actions []Action

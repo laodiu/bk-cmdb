@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package service TODO
 package service
 
 import (
@@ -31,19 +32,21 @@ import (
 	"configcenter/src/web_server/logics"
 	"configcenter/src/web_server/middleware"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/holmeswang/contrib/sessions"
 )
 
+// Service TODO
 type Service struct {
 	*options.ServerOption
 	Engine   *backbone.Engine
 	CacheCli redis.Client
 	*logics.Logics
 	Config  *options.Config
-	Session sessions.RedisStore
+	Session redis.RedisStore
 }
 
+// WebService TODO
 func (s *Service) WebService() *gin.Engine {
 	setGinMode()
 	ws := gin.New()
@@ -122,6 +125,10 @@ func (s *Service) WebService() *gin.Engine {
 
 	ws.Any("/proxy/:method/:target/*target_url", s.ProxyRequest)
 
+	// get changelog info
+	ws.POST("findmany/changelog", s.GetVersionList)
+	ws.POST("find/changelog/detail", s.GetVersionDetail)
+
 	// common api
 	ws.GET("/healthz", s.Healthz)
 	ws.GET("/version", ginservice.Version)
@@ -143,6 +150,7 @@ func setGinMode() {
 	gin.SetMode(mode)
 }
 
+// Healthz TODO
 func (s *Service) Healthz(c *gin.Context) {
 	meta := metric.HealthMeta{IsHealthy: true}
 

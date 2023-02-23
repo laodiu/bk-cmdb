@@ -22,8 +22,11 @@ import (
 	"configcenter/src/scene_server/admin_server/upgrader"
 	"configcenter/src/storage/dal"
 	"configcenter/src/storage/dal/types"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
+// InitHostPropertyApplyDataModel TODO
 func InitHostPropertyApplyDataModel(ctx context.Context, db dal.RDB, conf *upgrader.Config) error {
 	// check attribute exist
 	moduleAttributeFilter := map[string]interface{}{
@@ -114,31 +117,26 @@ func InitHostPropertyApplyDataModel(ctx context.Context, db dal.RDB, conf *upgra
 	// add index
 	indexes := []types.Index{
 		{
-			Keys: map[string]int32{
-				common.BKAppIDField: 1,
-			},
+			Keys:       bson.D{{common.BKAppIDField, 1}},
 			Name:       common.BKAppIDField,
 			Unique:     false,
 			Background: false,
 		},
 		{
-			Keys: map[string]int32{
-				common.BKFieldID: 1,
-			},
+			Keys: bson.D{{common.BKFieldID, 1}},
+
 			Name:       common.BKFieldID,
 			Unique:     true,
 			Background: false,
 		}, {
-			Keys: map[string]int32{
-				common.BKModuleIDField: 1,
-			},
+			Keys:       bson.D{{common.BKModuleIDField, 1}},
 			Name:       common.BKModuleIDField,
 			Unique:     false,
 			Background: false,
 		}, {
-			Keys: map[string]int32{
-				common.BKModuleIDField:    1,
-				common.BKAttributeIDField: 1,
+			Keys: bson.D{
+				{common.BKModuleIDField, 1},
+				{common.BKAttributeIDField, 1},
 			},
 			Name:       "host_property_under_module",
 			Background: false,
@@ -146,7 +144,8 @@ func InitHostPropertyApplyDataModel(ctx context.Context, db dal.RDB, conf *upgra
 		},
 	}
 	for _, index := range indexes {
-		if err := db.Table(common.BKTableNameHostApplyRule).CreateIndex(ctx, index); err != nil {
+		err = db.Table(common.BKTableNameHostApplyRule).CreateIndex(ctx, index)
+		if err != nil && !db.IsDuplicatedError(err) {
 			blog.Errorf("InitHostPropertyApplyDataModel failed, add index failed, table: %s, index: %+v, err: %s", common.BKTableNameHostApplyRule, index, err.Error())
 			return fmt.Errorf("add index failed, table: %s, index: %s, err: %s", common.BKTableNameHostApplyRule, index.Name, err.Error())
 		}

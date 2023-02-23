@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <cmdb-sticky-layout class="config-wrapper">
     <template #header="{ sticky }">
@@ -57,7 +69,7 @@
       :id="leaveConfirmConfig.id"
       :active="leaveConfirmConfig.active"
       :title="$t('是否退出配置')"
-      :content="$t('启用步骤未完成，退出将会丢失当前配置')"
+      :content="$t('启用步骤未完成，退出将撤销当前操作')"
       :ok-text="$t('退出')"
       :cancel-text="$t('取消')">
     </leave-confirm>
@@ -72,7 +84,7 @@
   import propertyConfigTable from './property-config-table'
   import serviceTemplateTips from './service-template-tips.vue'
   import { MENU_BUSINESS_HOST_APPLY_CONFIRM } from '@/dictionary/menu-symbol'
-  import { CONFIG_MODE } from '@/services/service-template/index.js'
+  import { CONFIG_MODE } from '@/service/service-template/index.js'
 
   export default {
     name: 'single-config',

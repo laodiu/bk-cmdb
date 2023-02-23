@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="cmdb-tag-input-alternate-list-wrapper"
     :class="{
@@ -9,15 +21,15 @@
       @scroll="handleScroll">
       <template v-for="(tag, index) in matchedData">
         <template v-if="tag.hasOwnProperty('children')">
-          <!-- eslint-disable vue/require-v-for-key -->
           <li class="alternate-group"
+            :key="index"
             @click.stop
             @mousedown.left.stop="tagInput.handleGroupMousedown"
             @mouseup.left.stop="tagInput.handleGroupMouseup">
             {{`${tag.value || tag.text}(${tag.children.length})`}}
           </li>
-          <!-- eslint-disable vue/valid-v-for -->
           <alternate-item v-for="(child, childIndex) in tag.children"
+            :key="childIndex"
             ref="alternateItem"
             :index="getIndex(index, childIndex)"
             :tag-input="tagInput"
@@ -25,8 +37,8 @@
             :keyword="keyword">
           </alternate-item>
         </template>
-        <!-- eslint-disable vue/valid-v-for -->
         <alternate-item v-else
+          :key="index"
           ref="alternateItem"
           :tag-input="tagInput"
           :tag="tag"

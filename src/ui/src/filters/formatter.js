@@ -1,3 +1,15 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import moment from 'moment'
 import has from 'has'
 
@@ -105,6 +117,38 @@ export function implode(value, separator = ',') {
   return value.toString()
 }
 
+export function array(value) {
+  if (!value || (Array.isArray(value) && value.length === 0)) {
+    return '--'
+  }
+
+  if (typeof value === 'string') {
+    return value
+  }
+
+  // 字符串数组
+  if (value.every(val => typeof val === 'string')) {
+    return value.toString()
+  }
+
+  return object(value)
+}
+
+export function object(value) {
+  if (!value) {
+    return '--'
+  }
+
+  let result = '--'
+  try {
+    result = JSON.stringify(value)
+  } catch (e) {
+    result = '--'
+  }
+
+  return result
+}
+
 const formatterMap = {
   singlechar,
   longchar,
@@ -117,7 +161,9 @@ const formatterMap = {
   bool,
   foreignkey,
   list,
-  enum: enumeration
+  enum: enumeration,
+  array,
+  object
 }
 
 export default function formatter(value, property, options) {

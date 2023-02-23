@@ -21,19 +21,22 @@ import (
 	"configcenter/src/scene_server/admin_server/upgrader"
 	"configcenter/src/storage/dal"
 	"configcenter/src/storage/dal/types"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
+// CreateInstNameIndex TODO
 func CreateInstNameIndex(ctx context.Context, db dal.RDB, conf *upgrader.Config) error {
 	idx := types.Index{
-		Keys: map[string]int32{
-			common.BKInstNameField: 1,
+		Keys: bson.D{
+			{common.BKInstNameField, 1},
 		},
 		Name:       common.BKInstNameField,
 		Unique:     false,
 		Background: false,
 	}
 
-	if err := db.Table(common.BKTableNameBaseInst).CreateIndex(ctx, idx); err != nil {
+	if err := db.Table(common.BKTableNameBaseInst).CreateIndex(ctx, idx); err != nil && !db.IsDuplicatedError(err) {
 		blog.Errorf("CreateIndex failed, err: %+v", err)
 		return fmt.Errorf("CreateIndex failed, err: %v", err)
 	}

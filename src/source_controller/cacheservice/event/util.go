@@ -21,6 +21,7 @@ import (
 	"configcenter/src/common/watch"
 )
 
+// GetResourceKeyWithCursorType TODO
 // get resource key
 func GetResourceKeyWithCursorType(res watch.CursorType) (Key, error) {
 	var key Key
@@ -51,6 +52,18 @@ func GetResourceKeyWithCursorType(res watch.CursorType) (Key, error) {
 		key = BizSetKey
 	case watch.BizSetRelation:
 		key = BizSetRelationKey
+	case watch.Plat:
+		key = PlatKey
+	case watch.KubeCluster:
+		key = KubeClusterKey
+	case watch.KubeNode:
+		key = KubeNodeKey
+	case watch.KubeNamespace:
+		key = KubeNamespaceKey
+	case watch.KubeWorkload:
+		key = KubeWorkloadKey
+	case watch.KubePod:
+		key = KubePodKey
 	default:
 		return key, fmt.Errorf("unsupported cursor type %s", res)
 	}
@@ -70,10 +83,14 @@ func IsConflictError(err error) bool {
 	return false
 }
 
+// HostArchive TODO
 type HostArchive struct {
 	Oid    string              `bson:"oid"`
 	Detail metadata.HostMapStr `bson:"detail"`
 }
 
+// ObjInstTablePrefixRegex TODO
 const ObjInstTablePrefixRegex = "^" + common.BKObjectInstShardingTablePrefix
+
+// InstAsstTablePrefixRegex TODO
 const InstAsstTablePrefixRegex = "^" + common.BKObjectInstAsstShardingTablePrefix

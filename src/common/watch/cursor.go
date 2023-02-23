@@ -22,11 +22,14 @@ import (
 
 	"configcenter/src/common"
 	"configcenter/src/common/blog"
+	kubetypes "configcenter/src/kube/types"
 	"configcenter/src/storage/stream/types"
 
+	"github.com/tidwall/gjson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// NoEventCursor TODO
 // this cursor means there is no event occurs.
 // we send this cursor to our the watcher and if we
 // received a NoEventCursor, then we need to fetch event
@@ -49,20 +52,33 @@ func init() {
 	NoEventCursor = cursor
 }
 
+// CursorType TODO
 type CursorType string
 
 const (
-	NoEvent                 CursorType = "no_event"
-	UnknownType             CursorType = "unknown"
-	Host                    CursorType = "host"
-	ModuleHostRelation      CursorType = "host_relation"
-	Biz                     CursorType = "biz"
-	Set                     CursorType = "set"
-	Module                  CursorType = "module"
-	ObjectBase              CursorType = "object_instance"
-	Process                 CursorType = "process"
+	// NoEvent TODO
+	NoEvent CursorType = "no_event"
+	// UnknownType TODO
+	UnknownType CursorType = "unknown"
+	// Host TODO
+	Host CursorType = "host"
+	// ModuleHostRelation TODO
+	ModuleHostRelation CursorType = "host_relation"
+	// Biz TODO
+	Biz CursorType = "biz"
+	// Set TODO
+	Set CursorType = "set"
+	// Module TODO
+	Module CursorType = "module"
+	// ObjectBase TODO
+	ObjectBase CursorType = "object_instance"
+	// Process TODO
+	Process CursorType = "process"
+	// ProcessInstanceRelation TODO
 	ProcessInstanceRelation CursorType = "process_instance_relation"
-	BizSet                  CursorType = "biz_set"
+	// BizSet TODO
+	BizSet CursorType = "biz_set"
+	// HostIdentifier TODO
 	// a mixed event type, which contains host, host relation, process events etc.
 	// and finally converted to host identifier event.
 	HostIdentifier CursorType = "host_identifier"
@@ -72,8 +88,22 @@ const (
 	InstAsst CursorType = "inst_asst"
 	// BizSetRelation a mixed event type containing biz set & biz events, which are converted to their relation events
 	BizSetRelation CursorType = "biz_set_relation"
+	// Plat cloud area event cursor type
+	Plat CursorType = "plat"
+	// kube related cursor types
+	// KubeCluster cursor type
+	KubeCluster CursorType = "kube_cluster"
+	// KubeNode cursor type
+	KubeNode CursorType = "kube_node"
+	// KubeNamespace cursor type
+	KubeNamespace CursorType = "kube_namespace"
+	// KubeWorkload cursor type, including all workloads(e.g. deployment) with their type specified in sub-resource
+	KubeWorkload CursorType = "kube_workload"
+	// KubePod cursor type, its event detail is pod info with containers in it
+	KubePod CursorType = "kube_pod"
 )
 
+// ToInt TODO
 func (ct CursorType) ToInt() int {
 	switch ct {
 	case NoEvent:
@@ -104,11 +134,24 @@ func (ct CursorType) ToInt() int {
 		return 14
 	case BizSetRelation:
 		return 15
+	case Plat:
+		return 16
+	case KubeCluster:
+		return 17
+	case KubeNode:
+		return 18
+	case KubeNamespace:
+		return 19
+	case KubeWorkload:
+		return 20
+	case KubePod:
+		return 21
 	default:
 		return -1
 	}
 }
 
+// ParseInt TODO
 func (ct *CursorType) ParseInt(typ int) {
 	switch typ {
 	case 1:
@@ -139,6 +182,18 @@ func (ct *CursorType) ParseInt(typ int) {
 		*ct = BizSet
 	case 15:
 		*ct = BizSetRelation
+	case 16:
+		*ct = Plat
+	case 17:
+		*ct = KubeCluster
+	case 18:
+		*ct = KubeNode
+	case 19:
+		*ct = KubeNamespace
+	case 20:
+		*ct = KubeWorkload
+	case 21:
+		*ct = KubePod
 	default:
 		*ct = UnknownType
 	}
@@ -147,12 +202,8 @@ func (ct *CursorType) ParseInt(typ int) {
 // ListCursorTypes returns all support CursorTypes.
 func ListCursorTypes() []CursorType {
 	return []CursorType{Host, ModuleHostRelation, Biz, Set, Module, ObjectBase, Process, ProcessInstanceRelation,
-		HostIdentifier, MainlineInstance, InstAsst, BizSet, BizSetRelation}
-}
-
-// ListEventCallbackCursorTypes returns all support CursorTypes for event callback.
-func ListEventCallbackCursorTypes() []CursorType {
-	return []CursorType{Host, ModuleHostRelation, Biz, Set, Module, ObjectBase, Process, ProcessInstanceRelation}
+		HostIdentifier, MainlineInstance, InstAsst, BizSet, BizSetRelation, Plat, KubeCluster, KubeNode, KubeNamespace,
+		KubeWorkload, KubePod}
 }
 
 // Cursor is a self-defined token which is corresponding to the mongodb's resume token.
@@ -174,6 +225,7 @@ type Cursor struct {
 
 const cursorVersion = "1"
 
+// Encode TODO
 func (c Cursor) Encode() (string, error) {
 	if c.Type == "" {
 		return "", errors.New("unsupported type")
@@ -228,6 +280,7 @@ func (c Cursor) Encode() (string, error) {
 	return base64.StdEncoding.EncodeToString(pool.Bytes()), nil
 }
 
+// Decode TODO
 func (c *Cursor) Decode(cur string) error {
 	byt, err := base64.StdEncoding.DecodeString(cur)
 	if err != nil {
@@ -314,6 +367,7 @@ func (c *Cursor) Decode(cur string) error {
 	return nil
 }
 
+// GetEventCursor TODO
 func GetEventCursor(coll string, e *types.Event, instID int64) (string, error) {
 	curType := UnknownType
 	switch coll {
@@ -339,6 +393,18 @@ func GetEventCursor(coll string, e *types.Event, instID int64) (string, error) {
 		curType = InstAsst
 	case common.BKTableNameBaseBizSet:
 		curType = BizSet
+	case common.BKTableNameBasePlat:
+		curType = Plat
+	case kubetypes.BKTableNameBaseCluster:
+		curType = KubeCluster
+	case kubetypes.BKTableNameBaseNode:
+		curType = KubeNode
+	case kubetypes.BKTableNameBaseNamespace:
+		curType = KubeNamespace
+	case kubetypes.BKTableNameBaseWorkload:
+		curType = KubeWorkload
+	case kubetypes.BKTableNameBasePod:
+		curType = KubePod
 	default:
 		blog.Errorf("unsupported cursor type collection: %s, oid: %s", e.ID())
 		return "", fmt.Errorf("unsupported cursor type collection: %s", coll)
@@ -351,13 +417,21 @@ func GetEventCursor(coll string, e *types.Event, instID int64) (string, error) {
 		Oper:        e.OperationType,
 	}
 
-	if curType == ObjectBase || curType == MainlineInstance || curType == InstAsst {
+	switch curType {
+	case ObjectBase, MainlineInstance, InstAsst:
 		if instID <= 0 {
 			return "", errors.New("invalid instance id")
 		}
 
 		// add unique key for common object instance.
 		hCursor.UniqKey = strconv.FormatInt(instID, 10)
+	case KubeWorkload:
+		if instID <= 0 {
+			return "", errors.New("invalid kube workload id")
+		}
+
+		// add unique key for kube workload, composed by workload type and id.
+		hCursor.UniqKey = fmt.Sprintf("%s:%d", gjson.GetBytes(e.DocBytes, kubetypes.KindField).String(), instID)
 	}
 
 	hCursorEncode, err := hCursor.Encode()

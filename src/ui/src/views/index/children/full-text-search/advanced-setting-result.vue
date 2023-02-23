@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="setting-tags" v-show="customized">
     <div class="tag-item target">检索对象：{{targetScopes}}</div>
@@ -12,25 +24,28 @@
 </template>
 
 <script>
-  import { computed, defineComponent } from '@vue/composition-api'
-  import { targetMap, currentSetting, handleReset } from './use-advanced-setting.js'
-  import useRoute, { pickQuery } from './use-route.js'
+  import { computed, defineComponent } from 'vue'
+  import store from '@/store'
+  import { t } from '@/i18n'
+  import routerActions from '@/router/actions'
+  import RouterQuery from '@/router/query'
+  import { targetMap, finalSetting, handleReset } from './use-advanced-setting.js'
+  import { pickQuery } from './use-route.js'
 
   export default defineComponent({
-    setup(props, { root }) {
-      const { $store, $routerActions } = root
-      const { route } = useRoute(root)
+    setup() {
+      const route = computed(() => RouterQuery.route)
 
-      const getModelById = $store.getters['objectModelClassify/getModelById']
+      const getModelById = store.getters['objectModelClassify/getModelById']
       const getModelName = id => getModelById(id)?.bk_obj_name ?? '--'
 
       const targetModels = computed(() => {
         const targetModels = []
-        currentSetting.targets.forEach((target) => {
-          const modelIds = currentSetting[`${target}s`]
+        finalSetting.value.targets.forEach((target) => {
+          const modelIds = finalSetting.value[`${target}s`]
           targetModels.push({
             targetName: targetMap[target],
-            models: modelIds.length ? modelIds.map(id => getModelName(id)).join(' | ') : root.$t('全部')
+            models: modelIds.length ? modelIds.map(id => getModelName(id)).join(' | ') : t('全部')
           })
         })
         return targetModels
@@ -38,19 +53,19 @@
 
       const customized = computed(() => {
         const changedModels = []
-        currentSetting.targets.forEach((target) => {
-          const modelIds = currentSetting[`${target}s`]
+        finalSetting.value.targets.forEach((target) => {
+          const modelIds = finalSetting.value[`${target}s`]
           changedModels.push(modelIds.length > 0)
         })
         return changedModels.some(changed => changed)
       })
 
-      const targetScopes = computed(() => currentSetting.targets.map(target => targetMap[target]).join(' | '))
+      const targetScopes = computed(() => finalSetting.value.targets.map(target => targetMap[target]).join(' | '))
 
       const handleClear = () => {
         handleReset()
         const query = pickQuery(route.value.query, ['tab', 'keyword'])
-        $routerActions.redirect({
+        routerActions.redirect({
           query: {
             ...query,
             t: Date.now()
@@ -63,7 +78,6 @@
         targetMap,
         targetScopes,
         targetModels,
-        currentSetting,
         handleClear
       }
     }

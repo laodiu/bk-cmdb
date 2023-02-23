@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="info">
     <div class="info-basic">
@@ -24,17 +36,19 @@
           v-for="(item, index) in topologyList"
           :key="index">
           <span class="topology-path" v-bk-overflow-tips @click="handlePathClick(item)">{{item.path}}</span>
-          <cmdb-auth :auth="[
-            { type: $OPERATION.C_SERVICE_INSTANCE, relation: [bizId] },
-            { type: $OPERATION.U_SERVICE_INSTANCE, relation: [bizId] },
-            { type: $OPERATION.D_SERVICE_INSTANCE, relation: [bizId] }
-          ]">
-            <i class="topology-remove-trigger icon-cc-tips-close"
-              v-if="!item.isInternal && !readonly"
-              v-bk-tooltips="{ content: $t('从该模块移除'), interactive: false }"
-              @click="handleRemove(item.id)">
-            </i>
-          </cmdb-auth>
+          <template v-if="!item.isContainer">
+            <cmdb-auth :auth="[
+              { type: $OPERATION.C_SERVICE_INSTANCE, relation: [bizId] },
+              { type: $OPERATION.U_SERVICE_INSTANCE, relation: [bizId] },
+              { type: $OPERATION.D_SERVICE_INSTANCE, relation: [bizId] }
+            ]">
+              <i class="topology-remove-trigger icon-cc-tips-close"
+                v-if="!item.isInternal && !readonly"
+                v-bk-tooltips="{ content: $t('从该模块移除'), interactive: false }"
+                @click="handleRemove(item.id)">
+              </i>
+            </cmdb-auth>
+          </template>
         </li>
       </ul>
       <a class="action-btn view-all"
@@ -75,6 +89,7 @@
   import ModuleSelectorWithTab from '@/views/business-topology/host/module-selector-with-tab.vue'
   import { readonlyMixin } from '../mixin-readonly'
   import { topoPathProxy } from '../service-proxy'
+  import containerHostService from '@/service/container/host'
 
   export default {
     name: 'cmdb-host-info',
@@ -82,6 +97,11 @@
       [ModuleSelectorWithTab.name]: ModuleSelectorWithTab
     },
     mixins: [readonlyMixin],
+    props: {
+      isContainerHost: {
+        type: Boolean
+      }
+    },
     data() {
       return {
         displayType: window.localStorage.getItem('host_topology_display_type') || 'double',
@@ -94,6 +114,7 @@
           width: 828,
           height: 600
         },
+        containerTopoPaths: [],
         request: {
           moveToIdleModule: Symbol('moveToIdleModule')
         }
@@ -131,16 +152,27 @@
       },
       topologyList() {
         const modules = this.info.module || []
-        return this.topoNodesPath.map((item) => {
+        const normalTopoPaths = this.topoNodesPath.map((item) => {
           const instId = item.topo_node.bk_inst_id
           const module = modules.find(module => module.bk_module_id === instId)
+          const paths = item.topo_path?.slice()?.reverse()
           return {
             id: instId,
-            path: item.topo_path.reverse().map(node => node.bk_inst_name)
+            path: paths?.map(node => node.bk_inst_name)
               .join(' / '),
             isInternal: module && module.default !== 0
           }
         }).sort((itemA, itemB) => itemA.path.localeCompare(itemB.path, 'zh-Hans-CN', { sensitivity: 'accent' }))
+
+        const containerTopoPaths = this.containerTopoPaths.find(topo => topo.bk_host_id === this.host.bk_host_id)?.paths
+        const newContainerTopoPaths = containerTopoPaths?.map(item => ({
+          id: item.bk_cluster_id,
+          path: `${item.biz_name} / ${item.cluster_name}`,
+          isInternal: false,
+          isContainer: true
+        }))
+
+        return [...normalTopoPaths, ...newContainerTopoPaths || []]
       },
       showMore() {
         if (this.isSingleColumn) {
@@ -152,12 +184,15 @@
         return this.$store.getters['objectModelClassify/getModelById']('host')
       },
       confirmLoading() {
-        return this.$loading(Object.values(this.request))
+        return this.$loading(this.request.moveToIdleModule)
       }
     },
     watch: {
       async info() {
-        await this.getModulePathInfo()
+        await Promise.all([
+          this.getModulePathInfo(),
+          this.getContainerTopoPaths()
+        ])
       }
     },
     methods: {
@@ -173,6 +208,12 @@
           console.error(e)
           this.topoNodesPath = []
         }
+      },
+      async getContainerTopoPaths() {
+        const result = await containerHostService.getNodePath({ ids: [this.host.bk_host_id] }, {
+          globalError: false
+        })
+        this.containerTopoPaths = result?.info?.paths || []
       },
       viewAll() {
         this.showAll = !this.showAll
@@ -200,7 +241,7 @@
               bizId: this.bizId
             },
             query: {
-              node: `module-${item.id}`
+              node: this.isContainerHost ? `cluster-${item.id}` : `module-${item.id}`
             }
           })
         } else {

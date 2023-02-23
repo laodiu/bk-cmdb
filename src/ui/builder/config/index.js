@@ -1,3 +1,15 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 'use strict'
 // Template version: 1.3.1
 // see http://vuejs-templates.github.io/webpack for documentation.
@@ -5,6 +17,8 @@
 const path = require('path')
 const fs = require('fs')
 const parseArgs = require('minimist')
+const { fixRequestBody } = require('http-proxy-middleware')
+
 
 const config = {
   BUILD_TITLE: '',
@@ -79,7 +93,9 @@ const dev = {
   // https://vue-loader.vuejs.org/en/options.html#cachebusting
   cacheBusting: true,
 
-  cssSourceMap: true
+  cssSourceMap: true,
+
+  useMock: false
 }
 
 const customDevConfigPath = path.resolve(__dirname, `index.dev.${argv.env || 'ee'}.js`)
@@ -87,6 +103,25 @@ const isCustomDevConfigExist = fs.existsSync(customDevConfigPath)
 if (isCustomDevConfigExist) {
   const customDevConfig = require(customDevConfigPath)
   Object.assign(dev, customDevConfig)
+}
+
+if (argv.mock) {
+  // 将所有请求修改为/mock下
+  dev.config.API_URL = dev.config.API_URL.replace('/proxy/', '/mock/')
+
+  // 当devserver中的/mock未匹配时会使用此代理，此代理将/mock的请求代理回默认的/proxy
+  dev.proxyTable['/mock'] = {
+    // 使用默认proxy配置
+    ...dev.proxyTable['/proxy'],
+    // 此时地址都是/mock前缀，同样需要重写为''
+    pathRewrite: {
+      '^/mock': ''
+    },
+    // fix proxied POST requests when bodyParser is applied before this middleware
+    onProxyReq: fixRequestBody
+  }
+
+  dev.useMock = true
 }
 
 module.exports = {

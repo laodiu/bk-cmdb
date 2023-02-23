@@ -22,18 +22,19 @@ import (
 	"configcenter/src/storage/dal"
 	"configcenter/src/storage/dal/types"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var oidCollIndex = types.Index{
-	Keys:       map[string]int32{"oid": 1, "coll": 1},
+	Keys:       bson.D{{"oid", 1}, {"coll", 1}},
 	Unique:     true,
 	Background: true,
 	Name:       "idx_oid_coll",
 }
 
 var collIndex = types.Index{
-	Keys:       map[string]int32{"coll": 1},
+	Keys:       bson.D{{"coll", 1}},
 	Unique:     false,
 	Background: true,
 	Name:       "idx_coll",
@@ -92,13 +93,13 @@ func addDelArchiveIndex(ctx context.Context, db dal.RDB, conf *upgrader.Config) 
 	}
 
 	err = db.Table(common.BKTableNameDelArchive).CreateIndex(ctx, oidCollIndex)
-	if err != nil {
+	if err != nil && !db.IsDuplicatedError(err) {
 		blog.ErrorJSON("add index %s for del archive table failed, err: %s", oidCollIndex, err)
 		return err
 	}
 
 	err = db.Table(common.BKTableNameDelArchive).CreateIndex(ctx, collIndex)
-	if err != nil {
+	if err != nil && !db.IsDuplicatedError(err) {
 		blog.ErrorJSON("add index %s for del archive table failed, err: %s", collIndex, err)
 		return err
 	}

@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package service TODO
 package service
 
 import (
@@ -35,6 +36,7 @@ import (
 	"github.com/emicklei/go-restful/v3"
 )
 
+// Service TODO
 type Service struct {
 	*options.Config
 	*backbone.Engine
@@ -44,6 +46,7 @@ type Service struct {
 	Logics  *logics.Logics
 }
 
+// WebService TODO
 func (s *Service) WebService() *restful.Container {
 
 	container := restful.NewContainer()
@@ -80,8 +83,6 @@ func (s *Service) addAPIService(web *restful.WebService) {
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/task/findmany/list/latest/{name}", Handler: s.ListLatestTask})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/task/findone/detail/{task_id}", Handler: s.DetailTask})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/task/deletemany", Handler: s.DeleteTask})
-	utility.AddHandler(rest.Action{Verb: http.MethodPut, Path: "/task/set/status/sucess/id/{task_id}/sub_id/{sub_task_id}", Handler: s.StatusToSuccess})
-	utility.AddHandler(rest.Action{Verb: http.MethodPut, Path: "/task/set/status/failure/id/{task_id}/sub_id/{sub_task_id}", Handler: s.StatusToFailure})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/latest/sync_status",
 		Handler: s.ListLatestSyncStatus})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/sync_status_history",
@@ -91,6 +92,7 @@ func (s *Service) addAPIService(web *restful.WebService) {
 
 }
 
+// Healthz TODO
 func (s *Service) Healthz(req *restful.Request, resp *restful.Response) {
 	meta := metric.HealthMeta{IsHealthy: true}
 

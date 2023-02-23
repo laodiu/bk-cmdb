@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package version TODO
 package version
 
 import (
@@ -29,6 +30,7 @@ var (
 	CCDistro        = "community" // enterprise, community
 	CCDistroVersion = "9999.9999.9999"
 	ServiceName     = "unknown"
+	GoVersion       = "unknown"
 )
 
 // CCRunMode enumeration
@@ -39,8 +41,10 @@ var (
 )
 
 var (
+	// CCDistrEnterprise TODO
 	CCDistrEnterprise = "enterprise"
-	CCDistrCommunity  = "community"
+	// CCDistrCommunity TODO
+	CCDistrCommunity = "community"
 )
 
 var (
@@ -62,6 +66,7 @@ GitHash     : %s
 RunMode     : %s
 Distribution: %s
 ServiceName : %s
-`, CCVersion, CCTag, CCBuildTime, CCGitHash, CCRunMode, CCDistro, ServiceName)
+GoVersion   : %s
+`, CCVersion, CCTag, CCBuildTime, CCGitHash, CCRunMode, CCDistro, ServiceName, GoVersion)
 	return version
 }

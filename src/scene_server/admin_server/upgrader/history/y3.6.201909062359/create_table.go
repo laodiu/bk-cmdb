@@ -20,6 +20,8 @@ import (
 	"configcenter/src/scene_server/admin_server/upgrader"
 	"configcenter/src/storage/dal"
 	"configcenter/src/storage/dal/types"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func createSetTemplateTables(ctx context.Context, db dal.RDB, conf *upgrader.Config) error {
@@ -58,12 +60,13 @@ func createSetTemplateTables(ctx context.Context, db dal.RDB, conf *upgrader.Con
 	idxName := "idx_id"
 	if _, ok := idxMap[idxName]; ok == false {
 		index := types.Index{
-			Keys:       map[string]int32{common.BKFieldID: 1},
+			Keys:       bson.D{{common.BKFieldID, 1}},
 			Name:       idxName,
 			Unique:     true,
 			Background: true,
 		}
-		if err := db.Table(common.BKTableNameSetTemplate).CreateIndex(ctx, index); err != nil {
+		err = db.Table(common.BKTableNameSetTemplate).CreateIndex(ctx, index)
+		if err != nil && !db.IsDuplicatedError(err) {
 			blog.ErrorJSON("add index for table: %s failed, index: %s, err:%s", common.BKTableNameSetTemplate, index, err.Error())
 			return err
 		}

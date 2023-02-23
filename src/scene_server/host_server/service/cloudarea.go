@@ -286,9 +286,10 @@ func (s *Service) CreatePlat(ctx *rest.Contexts) {
 
 }
 
+// DeletePlat TODO
 func (s *Service) DeletePlat(ctx *rest.Contexts) {
 
-	platID, convErr := util.GetInt64ByInterface(ctx.Request.PathParameter(common.BKCloudIDField))
+	platID, convErr := strconv.ParseInt(ctx.Request.PathParameter(common.BKCloudIDField), 10, 64)
 	if nil != convErr {
 		blog.Errorf("the platID is invalid, error info is %s, input:%s.rid:%s", convErr.Error(), platID, ctx.Kit.Rid)
 		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, convErr.Error()))
@@ -368,11 +369,12 @@ func (s *Service) DeletePlat(ctx *rest.Contexts) {
 
 }
 
+// UpdatePlat TODO
 func (s *Service) UpdatePlat(ctx *rest.Contexts) {
 
 	// parse platID from url
 	platIDStr := ctx.Request.PathParameter(common.BKCloudIDField)
-	platID, err := util.GetInt64ByInterface(platIDStr)
+	platID, err := strconv.ParseInt(platIDStr, 10, 64)
 	if nil != err {
 		blog.Infof("UpdatePlat failed, parse platID failed, platID: %s, err: %s, rid:%s", platIDStr, err.Error(),
 			ctx.Kit.Rid)
@@ -462,6 +464,7 @@ func (s *Service) UpdatePlat(ctx *rest.Contexts) {
 	ctx.RespEntity(nil)
 }
 
+// UpdateHostCloudAreaField TODO
 func (s *Service) UpdateHostCloudAreaField(ctx *rest.Contexts) {
 	rid := ctx.Kit.Rid
 	// decode request body

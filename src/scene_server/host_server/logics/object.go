@@ -51,6 +51,7 @@ func (lgc *Logics) SearchObjectAttributes(kit *rest.Kit, bizID int64, objectID s
 	return result.Info, nil
 }
 
+// GetTopoIDByName TODO
 func (lgc *Logics) GetTopoIDByName(kit *rest.Kit, c *meta.HostToAppModule) (int64, int64, int64, errors.CCError) {
 	if "" == c.AppName || "" == c.SetName || "" == c.ModuleName {
 		return 0, 0, 0, nil
@@ -115,90 +116,104 @@ func (lgc *Logics) GetTopoIDByName(kit *rest.Kit, c *meta.HostToAppModule) (int6
 	return appID, setID, moduleID, nil
 }
 
-func (lgc *Logics) GetSetIDByObjectCond(kit *rest.Kit, appID int64, objectCond []meta.ConditionItem) ([]int64, errors.CCError) {
-	objectIDArr := make([]int64, 0)
-	condition := make([]meta.ConditionItem, 0)
+// GetSetIDByObjectCond get set ids by mainline node conditions
+func (lgc *Logics) GetSetIDByObjectCond(kit *rest.Kit, appID int64, objectCond []meta.ConditionItem) ([]int64,
+	errors.CCError) {
 
-	instItem := meta.ConditionItem{}
+	objectIDArr := make([]int64, 0)
+
+	// parse mainline object condition to get inst ids filter, only allows condition of 'bk_inst_id $eq value' form
 	var hasInstID bool
 	for _, i := range objectCond {
-		if i.Field != common.BKInstIDField {
+		if i.Field != common.BKInstIDField || i.Operator != common.BKDBEQ {
 			continue
 		}
+
 		value, err := util.GetInt64ByInterface(i.Value)
-		if nil != err {
+		if err != nil {
 			return nil, err
 		}
-		hasInstID = true
-		instItem.Field = common.BKInstParentStr
-		instItem.Operator = i.Operator
-		instItem.Value = i.Value
-
 		objectIDArr = append(objectIDArr, value)
+
+		hasInstID = true
 	}
-	condition = append(condition, instItem)
+
 	if !hasInstID {
 		blog.Errorf("mainline miss bk_inst_id parameters. input:%#v, rid:%s", objectCond, kit.Rid)
 		return nil, kit.CCError.Error(common.CCErrHostSearchNeedObjectInstIDErr)
 	}
 
-	nodeFaultItem := meta.ConditionItem{}
-	nodeFaultItem.Field = common.BKDefaultField
-	nodeFaultItem.Operator = common.BKDBNE
-	nodeFaultItem.Value = common.DefaultResSetFlag
-
-	appIDItem := meta.ConditionItem{
-		Field:    common.BKAppIDField,
-		Operator: common.BKDBEQ,
-		Value:    appID,
+	// get inst ids corresponding object to ids map and mainline child to parent map
+	instObjMap, ccErr := lgc.CoreAPI.CoreService().Instance().GetInstanceObjectMapping(kit.Ctx, kit.Header, objectIDArr)
+	if ccErr != nil {
+		blog.Errorf("get instance mappings %v failed, err: %v, rid: %s", objectIDArr, ccErr, kit.Rid)
+		return nil, ccErr
 	}
-	condition = append(condition, appIDItem)
-	condition = append(condition, nodeFaultItem)
 
-	topoRoot, err := lgc.CoreAPI.CoreService().Mainline().SearchMainlineInstanceTopo(kit.Ctx, kit.Header, appID, false)
+	mainlineMap, err := lgc.searchMainlineRelationMap(kit)
 	if err != nil {
-		return nil, kit.CCError.Error(common.CCErrTopoMainlineSelectFailed)
+		blog.Errorf("get mainline association failed, err: %v, rid: %s", err, kit.Rid)
+		return nil, err
+	}
+	mainlineObj := make(map[string]struct{})
+	for _, obj := range mainlineMap {
+		mainlineObj[obj] = struct{}{}
 	}
 
-	for {
-		sSetIDArr, err := lgc.GetSetIDByCond(kit, meta.ConditionWithTime{Condition: condition})
+	objInstIDMap := make(map[string]int64)
+	for _, mapping := range instObjMap {
+		// if instance is not mainline model instance, skip
+		if _, ok := mainlineObj[mapping.ObjectID]; !ok {
+			continue
+		}
+		// returns no set ids if more than one inst id equal condition is set for one object
+		if _, exists := objInstIDMap[mapping.ObjectID]; exists {
+			return make([]int64, 0), nil
+		}
+
+		objInstIDMap[mapping.ObjectID] = mapping.ID
+	}
+	// an empty set ids is returned, if it is not judged, it will lead to an endless loop in the following logic.
+	if len(objInstIDMap) == 0 {
+		return make([]int64, 0), nil
+	}
+
+	// loop from the first mainline object under biz to set, filters out the set ids under the mainline instances
+	filter := make(map[string]interface{})
+	for object := mainlineMap[common.BKInnerObjIDApp]; object != ""; object = mainlineMap[object] {
+		instID, exists := objInstIDMap[object]
+		if len(filter) == 0 && !exists {
+			continue
+		}
+
+		filter[common.BKAppIDField] = appID
+
+		if exists {
+			filter[common.BKInstIDField] = instID
+		}
+
+		filteredIDs, err := lgc.getInstIDsByCond(kit, object, filter)
 		if err != nil {
+			blog.Errorf("get object[%s] inst ids failed, cond: %v, err: %v, rid: %s", object, filter, err, kit.Rid)
 			return nil, err
 		}
 
-		if 0 != len(sSetIDArr) {
-			return sSetIDArr, nil
+		if len(filteredIDs) == 0 {
+			return make([]int64, 0), nil
 		}
 
-		sObjectIDArr := make([]int64, 0)
-		for _, id := range objectIDArr {
-			path := topoRoot.TraversalFindNode(common.BKInnerObjIDObject, id)
-			if len(path) == 0 {
-				continue
-			}
-			node := path[0]
-			for _, childNode := range node.Children {
-				sObjectIDArr = append(sObjectIDArr, childNode.InstanceID)
-			}
-		}
-		objectIDArr = sObjectIDArr
-		if 0 == len(sObjectIDArr) {
-			return []int64{}, nil
+		if object == common.BKInnerObjIDSet {
+			return filteredIDs, nil
 		}
 
-		conc := meta.ConditionItem{
-			Field:    common.BKInstParentStr,
-			Operator: common.BKDBIN,
-			Value:    sObjectIDArr,
+		filter = map[string]interface{}{
+			common.BKParentIDField: mapstr.MapStr{common.BKDBIN: filteredIDs},
 		}
-		condition = make([]meta.ConditionItem, 0)
-		condition = append(condition, conc)
-		condition = append(condition, appIDItem)
-		condition = append(condition, nodeFaultItem)
 	}
-
+	return make([]int64, 0), nil
 }
 
+// getObjectByParentID TODO
 // deprecated, please use CoreAPI.CoreService().Mainline().SearchMainlineInstanceTopo instead
 func (lgc *Logics) getObjectByParentID(kit *rest.Kit, valArr []int64) ([]int64, errors.CCError) {
 	instIDArr := make([]int64, 0)
@@ -285,6 +300,7 @@ func (lgc *Logics) GetObjectInstByCond(kit *rest.Kit, objID string, cond []meta.
 	return instIDArr, nil
 }
 
+// GetHostIDByInstID TODO
 func (lgc *Logics) GetHostIDByInstID(kit *rest.Kit, asstObjId string, instIDArr []int64) ([]int64, errors.CCError) {
 	cond := hutil.NewOperation().WithObjID(common.BKInnerObjIDHost).
 		WithAssoObjID(asstObjId).WithAssoInstID(map[string]interface{}{common.BKDBIN: instIDArr}).Data()

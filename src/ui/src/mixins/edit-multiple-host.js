@@ -1,3 +1,15 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import RouterQuery from '@/router/query'
 import { MENU_BUSINESS } from '@/dictionary/menu-symbol'
 export default {
@@ -9,7 +21,8 @@ export default {
     selection: {
       type: Array,
       required: true
-    }
+    },
+    isContainerHost: Boolean
   },
   data() {
     return {
@@ -26,24 +39,38 @@ export default {
   },
   computed: {
     isGlobalView() {
-      // eslint-disable-next-line prefer-destructuring
       const topRoute = this.$route.matched[0]
       return topRoute ? topRoute.name !== MENU_BUSINESS : true
     },
     saveAuth() {
-      return this.selection.map(({ host, biz, module }) => {
+      const bizHostAuth = (bizId, hostId) => ({
+        type: this.$OPERATION.U_HOST,
+        relation: [bizId, hostId]
+      })
+      const resourceHostAuth = (moduleId, hostId) => ({
+        type: this.$OPERATION.U_RESOURCE_HOST,
+        relation: [moduleId, hostId]
+      })
+
+      return this.selection.map((row) => {
+        if (this.isContainerHost) {
+          // TODO: 判断是否为业务主机返回不同的auth
+          return bizHostAuth(row.bk_biz_id, row.bk_host_id)
+        }
+
+        const { host, biz, module } = row
         const isBizHost = biz[0].default === 0
         if (isBizHost) {
-          return {
-            type: this.$OPERATION.U_HOST,
-            relation: [biz[0].bk_biz_id, host.bk_host_id]
-          }
+          return bizHostAuth(biz[0].bk_biz_id, host.bk_host_id)
         }
-        return {
-          type: this.$OPERATION.U_RESOURCE_HOST,
-          relation: [module[0].bk_module_id, host.bk_host_id]
-        }
+        return resourceHostAuth(module[0].bk_module_id, host.bk_host_id)
       })
+    },
+    hostIds() {
+      if (this.isContainerHost) {
+        return this.selection.map(row => row.bk_host_id).join(',')
+      }
+      return this.selection.map(row => row.host.bk_host_id).join(',')
     }
   },
   methods: {
@@ -68,7 +95,7 @@ export default {
         await this.$store.dispatch('hostUpdate/updateHost', {
           params: {
             ...changedValues,
-            bk_host_id: this.selection.map(row => row.host.bk_host_id).join(',')
+            bk_host_id: this.hostIds
           }
         })
         this.slider.show = false

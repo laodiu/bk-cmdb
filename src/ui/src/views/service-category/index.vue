@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="category-wrapper" v-bkloading="{ isLoading: $loading(Object.values(request)) }">
     <cmdb-tips class="mb10" tips-key="categoryTips">{{$t('服务分类功能提示')}}</cmdb-tips>
@@ -10,7 +22,9 @@
       </bk-input>
     </div>
     <div class="category-list">
-      <div class="category-item bgc-white" v-for="(mainCategory, index) in displayList" :key="index">
+      <div
+        :class="['category-item', 'bgc-white', { editing: editMainStatus === mainCategory['id'] }]"
+        v-for="(mainCategory, index) in displayList" :key="index">
         <div class="category-title"
           :style="{
             'background-color': editMainStatus === mainCategory['id'] ? '#f0f1f5' : ''
@@ -42,6 +56,7 @@
                 <span class="built-in-sign">{{$t('内置')}}</span>
               </template>
               <cmdb-auth v-else
+                :ignore="ignoreUpdateAuth"
                 :auth="{ type: $OPERATION.U_SERVICE_CATEGORY, relation: [bizId] }">
                 <div slot-scope="{ disabled }" :class="['category-name-text', { disabled }]">
                   <div class="text-inner" @click.stop="handleEditMain(mainCategory['id'], mainCategory['name'])">
@@ -52,11 +67,14 @@
               </cmdb-auth>
             </div>
             <div class="menu-operational" v-if="!mainCategory['is_built_in']">
-              <cmdb-auth :auth="{ type: $OPERATION.C_SERVICE_CATEGORY, relation: [bizId] }">
+              <cmdb-auth
+                @update-auth="isMainAuthCompleted = true"
+                :auth="{ type: $OPERATION.C_SERVICE_CATEGORY, relation: [bizId] }">
                 <bk-button slot-scope="{ disabled }" v-test-id="'addChild'"
                   class="menu-btn"
                   :disabled="disabled"
                   :text="true"
+                  v-show="isMainAuthCompleted"
                   @click="handleShowAddChild(mainCategory['id'])">
                   <i class="bk-cmdb-icon icon-cc-plus"></i>
                 </bk-button>
@@ -66,6 +84,7 @@
                   <bk-button v-if="disabled || !mainCategory['child_category_list'].length"
                     class="menu-btn"
                     :text="true"
+                    v-show="isMainAuthCompleted"
                     :disabled="disabled"
                     @click="handleDeleteCategory(mainCategory['id'], 'main', index)">
                     <i class="bk-cmdb-icon icon-cc-del"></i>
@@ -103,7 +122,9 @@
                 <span :title="childCategory['name']">{{childCategory['name']}}</span>
                 <span class="child-id" :title="childCategory['id']">{{childCategory['id']}}</span>
                 <div class="child-edit" v-if="!childCategory['is_built_in']" v-test-id="'childEdit'">
-                  <cmdb-auth class="mr10" :auth="{ type: $OPERATION.U_SERVICE_CATEGORY, relation: [bizId] }">
+                  <cmdb-auth class="mr10"
+                    :ignore="ignoreUpdateAuth"
+                    :auth="{ type: $OPERATION.U_SERVICE_CATEGORY, relation: [bizId] }">
                     <bk-button slot-scope="{ disabled }" v-test-id="'childEdit'"
                       class="child-edit-btn"
                       theme="primary"
@@ -233,7 +254,9 @@
         isAuthcompleted: false,
         request: {
           category: Symbol('category')
-        }
+        },
+        ignoreUpdateAuth: false,
+        isMainAuthCompleted: false
       }
     },
     computed: {
@@ -348,7 +371,7 @@
           }).then((res) => {
             this.$success(this.$t('保存成功'))
             this.handleCloseEditChild()
-            // this.handleCloseEditMain()
+            this.handleCloseEditMain()
             if (mainIndex !== undefined && type === 'child') {
               const childList = this.list[mainIndex].child_category_list.map((child) => {
                 if (child.id === res.id) {
@@ -361,6 +384,9 @@
               this.$set(this.list[mainIndex], 'name', res.name)
             }
           })
+            .finally(() => {
+              this.ignoreUpdateAuth = true
+            })
         }
       },
       handleDeleteCategory(id, type, index) {
@@ -403,6 +429,7 @@
       },
       handleCloseEditMain() {
         this.editMainStatus = null
+        this.isMainAuthCompleted = false
       },
       handleEditChild(id, name) {
         this.editChildStatus = id

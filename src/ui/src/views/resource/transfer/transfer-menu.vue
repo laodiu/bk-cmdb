@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="transfer-menu">
     <bk-dropdown-menu
@@ -81,7 +93,7 @@
         return !HostStore.isSelected
       },
       transferToOtherDisabled() {
-        return !HostStore.isAllIdleModule || HostStore.hosts.some(host => host.biz[0].default === 1)
+        return !HostStore.isAllIdleSet || HostStore.hosts.some(host => host.biz[0].default === 1)
       },
     },
     methods: {
@@ -155,9 +167,9 @@
           this.$error('所选主机已在主机池中')
           return false
         }
-        const { isAllIdleModule } = HostStore
-        if (!isAllIdleModule) {
-          this.$error(this.$t('仅支持对空闲机模块下的主机进行操作', { idleModule: this.$store.state.globalConfig.config.idlePool.idle }))
+        const { isAllIdleSet } = HostStore
+        if (!isAllIdleSet) {
+          this.$error(this.$t('仅支持对空闲机池下的主机进行操作', { idleSet: this.$store.state.globalConfig.config.set }))
           return false
         }
         const [bizId] = HostStore.bizSet

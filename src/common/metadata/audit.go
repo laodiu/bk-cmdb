@@ -34,10 +34,12 @@ type AuditQueryResult struct {
 	Info  []AuditLog `json:"info"`
 }
 
+// CreateAuditLogParam TODO
 type CreateAuditLogParam struct {
 	Data []AuditLog `json:"data"`
 }
 
+// AuditQueryInput TODO
 type AuditQueryInput struct {
 	Condition AuditQueryCondition `json:"condition"`
 	Page      BasePage            `json:"page,omitempty"`
@@ -68,6 +70,7 @@ func (input *AuditQueryInput) Validate() errors.RawErrorInfo {
 	return errors.RawErrorInfo{}
 }
 
+// AuditQueryCondition TODO
 type AuditQueryCondition struct {
 	AuditType    AuditType       `json:"audit_type"`
 	User         string          `json:"user"`
@@ -98,6 +101,7 @@ func (a *AuditQueryCondition) Validate() error {
 	return nil
 }
 
+// OperationTimeCondition TODO
 type OperationTimeCondition struct {
 	Start string `json:"start"`
 	End   string `json:"end"`
@@ -164,6 +168,7 @@ type InstAuditCondition struct {
 	ID []int64 `json:"id"`
 }
 
+// AuditLog TODO
 type AuditLog struct {
 	ID int64 `json:"id" bson:"id"`
 	// AuditType is a high level abstract of the resource managed by this cmdb.
@@ -232,10 +237,12 @@ type jsonAuditLog struct {
 	RequestID       string          `json:"rid" bson:"rid"`
 }
 
+// DetailFactory TODO
 type DetailFactory interface {
 	WithName() string
 }
 
+// UnmarshalJSON TODO
 func (auditLog *AuditLog) UnmarshalJSON(data []byte) error {
 	audit := jsonAuditLog{}
 	if err := json.Unmarshal(data, &audit); err != nil {
@@ -268,6 +275,16 @@ func (auditLog *AuditLog) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
+	switch audit.AuditType {
+	case KubeType:
+		operationDetail := new(GenericOpDetail)
+		if err := json.Unmarshal(audit.OperationDetail, &operationDetail); err != nil {
+			return err
+		}
+		auditLog.OperationDetail = operationDetail
+		return nil
+	}
+
 	switch audit.ResourceType {
 	case BusinessRes, BizSetRes, SetRes, ModuleRes, ProcessRes, HostRes, CloudAreaRes, ModelInstanceRes,
 		MainlineInstanceRes, ResourceDirRes:
@@ -304,6 +321,7 @@ func (auditLog *AuditLog) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalBSON TODO
 func (auditLog *AuditLog) UnmarshalBSON(data []byte) error {
 	audit := bsonAuditLog{}
 	if err := bson.Unmarshal(data, &audit); err != nil {
@@ -336,6 +354,16 @@ func (auditLog *AuditLog) UnmarshalBSON(data []byte) error {
 		return nil
 	}
 
+	switch audit.AuditType {
+	case KubeType:
+		operationDetail := new(GenericOpDetail)
+		if err := bson.Unmarshal(audit.OperationDetail, &operationDetail); err != nil {
+			return err
+		}
+		auditLog.OperationDetail = operationDetail
+		return nil
+	}
+
 	switch audit.ResourceType {
 	case BusinessRes, BizSetRes, SetRes, ModuleRes, ProcessRes, HostRes, CloudAreaRes, ModelInstanceRes,
 		MainlineInstanceRes, ResourceDirRes:
@@ -372,6 +400,7 @@ func (auditLog *AuditLog) UnmarshalBSON(data []byte) error {
 	return nil
 }
 
+// MarshalBSON TODO
 func (auditLog AuditLog) MarshalBSON() ([]byte, error) {
 	audit := bsonAuditLog{}
 	audit.ID = auditLog.ID
@@ -398,15 +427,18 @@ func (auditLog AuditLog) MarshalBSON() ([]byte, error) {
 	return bson.Marshal(audit)
 }
 
+// BasicOpDetail TODO
 type BasicOpDetail struct {
 	// Details contains all the details information about a user's operation
 	Details *BasicContent `json:"details" bson:"details"`
 }
 
+// WithName TODO
 func (op *BasicOpDetail) WithName() string {
 	return "BasicDetail"
 }
 
+// ModelAttrOpDetail TODO
 type ModelAttrOpDetail struct {
 	BasicOpDetail `bson:",inline"`
 	// BkObjID the attribute object ID
@@ -415,20 +447,24 @@ type ModelAttrOpDetail struct {
 	BkObjName string `json:"bk_obj_name" bson:"bk_obj_name"`
 }
 
+// WithName TODO
 func (op *ModelAttrOpDetail) WithName() string {
 	return "ModelAttrDetail"
 }
 
+// InstanceOpDetail TODO
 type InstanceOpDetail struct {
 	BasicOpDetail `bson:",inline"`
 	// BkObjID the object ID of the instance's model
 	ModelID string `json:"bk_obj_id" bson:"bk_obj_id"`
 }
 
+// WithName TODO
 func (op *InstanceOpDetail) WithName() string {
 	return "InstanceOpDetail"
 }
 
+// HostTransferOpDetail TODO
 type HostTransferOpDetail struct {
 	// PreData the previous biz topology of the host before transfer
 	PreData HostBizTopo `json:"pre_data" bson:"pre_data"`
@@ -436,16 +472,19 @@ type HostTransferOpDetail struct {
 	CurData HostBizTopo `json:"cur_data" bson:"cur_data"`
 }
 
+// HostBizTopo TODO
 type HostBizTopo struct {
 	BizID   int64  `json:"bk_biz_id" bson:"bk_biz_id"`
 	BizName string `json:"bk_biz_name" bson:"bk_biz_name"`
 	Set     []Topo `json:"set" bson:"set"`
 }
 
+// WithName TODO
 func (op *HostTransferOpDetail) WithName() string {
 	return "HostTransferOpDetail"
 }
 
+// AssociationOpDetail TODO
 type AssociationOpDetail struct {
 	// AssociationID association id between two object
 	AssociationID string `json:"asst_id" bson:"asst_id"`
@@ -453,6 +492,7 @@ type AssociationOpDetail struct {
 	AssociationKind string `json:"asst_kind" bson:"asst_kind"`
 }
 
+// InstanceAssociationOpDetail TODO
 type InstanceAssociationOpDetail struct {
 	AssociationOpDetail `bson:",inline"`
 	// SourceModelID the source instance's object ID
@@ -465,10 +505,12 @@ type InstanceAssociationOpDetail struct {
 	TargetInstanceName string `json:"dest_inst_name" bson:"dest_inst_name"`
 }
 
+// WithName TODO
 func (ao *InstanceAssociationOpDetail) WithName() string {
 	return "InstanceAssociationOpDetail"
 }
 
+// ModelAssociationOpDetail TODO
 type ModelAssociationOpDetail struct {
 	AssociationOpDetail `bson:",inline"`
 	// AssociationName the alias name of the association
@@ -485,6 +527,7 @@ type ModelAssociationOpDetail struct {
 	TargetModelName int64 `json:"dest_obj_name" bson:"dest_obj_name"`
 }
 
+// WithName TODO
 func (ao *ModelAssociationOpDetail) WithName() string {
 	return "ModelAssociationOpDetail"
 }
@@ -513,7 +556,7 @@ func (op *ServiceInstanceOpDetail) WithName() string {
 	return "ServiceInstanceOpDetail"
 }
 
-// Content contains the details information with in a user's operation.
+// BasicContent contains the details information with in a user's operation.
 // Generally, works for business, model, model instance etc.
 type BasicContent struct {
 	// PreData the previous data before the deletion or updating operation
@@ -524,16 +567,32 @@ type BasicContent struct {
 	UpdateFields map[string]interface{} `json:"update_fields" bson:"update_fields"`
 }
 
+// GenericOpDetail generic operation detail, including the operated data and the update fields for update operation
+// works for operation of structured data like pod, container etc.
+type GenericOpDetail struct {
+	// Data the operated data, which is previous data before delete or update, and current data after create operation
+	Data interface{} `json:"data" bson:"data"`
+	// UpdateFields the data that user uses to update the previous data, might not be the actual changed data
+	UpdateFields interface{} `json:"update_fields,omitempty'" bson:"update_fields,omitempty"`
+}
+
+// WithName returns the generic operation detail name
+func (op *GenericOpDetail) WithName() string {
+	return "GenericOpDetail"
+}
+
+// AuditType TODO
 type AuditType string
 
 const (
-	// BusinessKind represent business itself's operation audit. such as you change a business maintainer, it's
+	// BusinessType represent business itself's operation audit. such as you change a business maintainer, it's
 	// audit belongs to this kind.
 	BusinessType AuditType = "business"
 
 	// BizSetType represent operation audit of biz set itself
 	BizSetType AuditType = "biz_set"
 
+	// BusinessResourceType TODO
 	// Business resource include resources as follows:
 	// - service template
 	// - set template
@@ -559,10 +618,10 @@ const (
 	// AssociationKindType represent all the association kind operation audit.
 	AssociationKindType AuditType = "association_kind"
 
-	// EventType represent all the event related operation audit.
+	// EventPushType represent all the event related operation audit.
 	EventPushType AuditType = "event"
 
-	// CloudResource represent all the operation audit related with cloud, such as:
+	// CloudResourceType represent all the operation audit related with cloud, such as:
 	// - cloud area
 	// - cloud account
 	// - cloud synchronize job
@@ -574,54 +633,101 @@ const (
 
 	// PlatFormSettingType is platform audit type
 	PlatFormSettingType AuditType = "platform_setting"
+
+	// KubeType is kube related audit type
+	KubeType AuditType = "kube"
 )
 
+// ResourceType TODO
 type ResourceType string
 
 const (
-	// business related operation type
-	BusinessRes             ResourceType = "business"
-	BizSetRes               ResourceType = "biz_set"
-	ServiceTemplateRes      ResourceType = "service_template"
-	SetTemplateRes          ResourceType = "set_template"
-	ServiceCategoryRes      ResourceType = "service_category"
-	DynamicGroupRes         ResourceType = "dynamic_group"
-	ServiceInstanceRes      ResourceType = "service_instance"
+	// BusinessRes related operation type
+	BusinessRes ResourceType = "business"
+	// BizSetRes TODO
+	BizSetRes ResourceType = "biz_set"
+	// ServiceTemplateRes TODO
+	ServiceTemplateRes ResourceType = "service_template"
+	// SetTemplateRes TODO
+	SetTemplateRes ResourceType = "set_template"
+	// ServiceCategoryRes TODO
+	ServiceCategoryRes ResourceType = "service_category"
+	// DynamicGroupRes TODO
+	DynamicGroupRes ResourceType = "dynamic_group"
+	// ServiceInstanceRes TODO
+	ServiceInstanceRes ResourceType = "service_instance"
+	// ServiceInstanceLabelRes TODO
 	ServiceInstanceLabelRes ResourceType = "service_instance_label"
-	SetRes                  ResourceType = "set"
-	ModuleRes               ResourceType = "module"
-	ProcessRes              ResourceType = "process"
-	HostApplyRes            ResourceType = "host_apply"
-	CustomFieldRes          ResourceType = "custom_field"
+	// SetRes TODO
+	SetRes ResourceType = "set"
+	// ModuleRes TODO
+	ModuleRes ResourceType = "module"
+	// ProcessRes TODO
+	ProcessRes ResourceType = "process"
+	// HostApplyRes TODO
+	HostApplyRes ResourceType = "host_apply"
+	// CustomFieldRes TODO
+	CustomFieldRes ResourceType = "custom_field"
 
+	// ModelRes TODO
 	// model related operation type
-	ModelRes               ResourceType = "model"
-	ModelInstanceRes       ResourceType = "model_instance"
-	MainlineInstanceRes    ResourceType = "mainline_instance"
-	ModelAssociationRes    ResourceType = "model_association"
-	ModelAttributeRes      ResourceType = "model_attribute"
+	ModelRes ResourceType = "model"
+	// ModelInstanceRes TODO
+	ModelInstanceRes ResourceType = "model_instance"
+	// MainlineInstanceRes TODO
+	MainlineInstanceRes ResourceType = "mainline_instance"
+	// ModelAssociationRes TODO
+	ModelAssociationRes ResourceType = "model_association"
+	// ModelAttributeRes TODO
+	ModelAttributeRes ResourceType = "model_attribute"
+	// ModelAttributeGroupRes TODO
 	ModelAttributeGroupRes ResourceType = "model_attribute_group"
+	// ModelClassificationRes TODO
 	ModelClassificationRes ResourceType = "model_classification"
+	// InstanceAssociationRes TODO
 	InstanceAssociationRes ResourceType = "instance_association"
-	ModelGroupRes          ResourceType = "model_group"
-	ModelUniqueRes         ResourceType = "model_unique"
-	ResourceDirectoryRes   ResourceType = "resource_directory"
+	// ModelGroupRes TODO
+	ModelGroupRes ResourceType = "model_group"
+	// ModelUniqueRes TODO
+	ModelUniqueRes ResourceType = "model_unique"
+	// ResourceDirectoryRes TODO
+	ResourceDirectoryRes ResourceType = "resource_directory"
 
+	// AssociationKindRes TODO
 	AssociationKindRes ResourceType = "association_kind"
-	EventPushRes       ResourceType = "event"
-	CloudAreaRes       ResourceType = "cloud_area"
-	CloudAccountRes    ResourceType = "cloud_account"
-	CloudSyncTaskRes   ResourceType = "cloud_sync_task"
+	// EventPushRes TODO
+	EventPushRes ResourceType = "event"
+	// CloudAreaRes TODO
+	CloudAreaRes ResourceType = "cloud_area"
+	// CloudAccountRes TODO
+	CloudAccountRes ResourceType = "cloud_account"
+	// CloudSyncTaskRes TODO
+	CloudSyncTaskRes ResourceType = "cloud_sync_task"
 
+	// HostRes TODO
 	// host related operation type
 	HostRes ResourceType = "host"
 
+	// ResourceDirRes TODO
 	ResourceDirRes ResourceType = "resource_directory"
 
 	// PlatFormSettingRes platform related operation type
 	PlatFormSettingRes ResourceType = "platform_setting"
+
+	// kube related audit resource type
+	// KubeCluster kube cluster audit resource type
+	KubeCluster ResourceType = "kube_cluster"
+	// KubeNode kube node audit resource type
+	KubeNode ResourceType = "kube_node"
+	// KubeNamespace kube namespace audit resource type
+	KubeNamespace ResourceType = "kube_namespace"
+	// KubeWorkload kube workload audit resource type
+	KubeWorkload ResourceType = "kube_workload"
+	// KubePod kube pod audit resource type
+	KubePod ResourceType = "kube_pod"
 )
 
+// OperateFromType TODO
 type OperateFromType string
 
 const (
@@ -641,28 +747,39 @@ const (
 type ActionType string
 
 const (
+	// AuditCreate TODO
 	// create a resource
 	AuditCreate ActionType = "create"
+	// AuditUpdate TODO
 	// update a resource
 	AuditUpdate ActionType = "update"
+	// AuditDelete TODO
 	// delete a resource
 	AuditDelete ActionType = "delete"
+	// AuditAssignHost TODO
 	// transfer a host from resource pool to biz
 	AuditAssignHost ActionType = "assign_host"
+	// AuditUnassignHost TODO
 	// transfer a host from biz to resource pool
 	AuditUnassignHost ActionType = "unassign_host"
+	// AuditTransferHostModule TODO
 	// transfer host to another module
 	AuditTransferHostModule ActionType = "transfer_host_module"
+	// AuditArchive TODO
 	// archive a resource
 	AuditArchive ActionType = "archive"
+	// AuditRecover TODO
 	// recover a resource
 	AuditRecover ActionType = "recover"
+	// AuditPause TODO
 	// pause an object
 	AuditPause ActionType = "stop"
+	// AuditResume TODO
 	// resume using an object
 	AuditResume ActionType = "resume"
 )
 
+// GetAuditTypeByObjID TODO
 func GetAuditTypeByObjID(objID string, isMainline bool) AuditType {
 	switch objID {
 	case common.BKInnerObjIDBizSet:
@@ -689,6 +806,7 @@ func GetAuditTypeByObjID(objID string, isMainline bool) AuditType {
 	}
 }
 
+// GetResourceTypeByObjID TODO
 func GetResourceTypeByObjID(objID string, isMainline bool) ResourceType {
 	switch objID {
 	case common.BKInnerObjIDBizSet:
@@ -721,7 +839,7 @@ func GetAuditTypesByCategory(category string) []AuditType {
 	case "business":
 		return []AuditType{BusinessResourceType, DynamicGroupType}
 	case "resource":
-		return []AuditType{BusinessType, BizSetType, ModelInstanceType, CloudResourceType}
+		return []AuditType{BusinessType, BizSetType, ModelInstanceType, CloudResourceType, KubeType}
 	case "host":
 		return []AuditType{HostType}
 	case "other":
@@ -946,6 +1064,7 @@ type actionTypeInfo struct {
 	Name string     `json:"name"`
 }
 
+// AuditDetailQueryInput TODO
 type AuditDetailQueryInput struct {
 	IDs []int64 `json:"id"`
 }

@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="property">
     <div class="group"
@@ -16,7 +28,7 @@
             v-bk-overflow-tips
             v-if="property !== editState.property">
             <cmdb-property-value
-              :ref="`property-value-${property.bk_property_id}`"
+              :ref="`property-value-${property.id}`"
               :value="host[property.bk_property_id]"
               :property="property">
             </cmdb-property-value>
@@ -26,7 +38,9 @@
               <template v-if="hasRelatedRules(property) || !isPropertyEditable(property)">
                 <span :id="`rule-${property.id}`">
                   <i18n path="已配置属性自动应用提示" v-if="hasRelatedRules(property)">
-                    <bk-button text place="link" @click="handleViewRules(property)">{{$t('点击跳转查看配置详情')}}</bk-button>
+                    <template #link>
+                      <bk-button text @click="handleViewRules(property)">{{$t('点击跳转查看配置详情')}}</bk-button>
+                    </template>
                   </i18n>
                   <span v-else>{{$t('系统限定不可修改')}}</span>
                 </span>
@@ -71,6 +85,7 @@
                       v-bind="$tools.getValidateEvents(property)"
                       v-validate="$tools.getValidateRules(property)"
                       v-model.trim="editState.value"
+                      @enter="confirm"
                       :ref="`component-${property.bk_property_id}`">
                     </component>
                   </div>
@@ -86,16 +101,53 @@
 
             <template v-if="host[property.bk_property_id] && property !== editState.property">
               <div class="copy-box">
-                <i class="property-copy icon-cc-details-copy" @click="handleCopy(property.bk_property_id)"></i>
+                <i class="property-copy icon-cc-details-copy" @click="handleCopy(property.id)"></i>
                 <transition name="fade">
                   <span class="copy-tips"
                     :style="{ width: $i18n.locale === 'en' ? '100px' : '70px' }"
-                    v-if="showCopyTips === property.bk_property_id">
+                    v-if="showCopyTips === property.id">
                     {{$t('复制成功')}}
                   </span>
                 </transition>
               </div>
             </template>
+          </template>
+        </li>
+      </ul>
+    </div>
+
+    <!-- 容器节点信息 -->
+    <div class="group"
+      v-for="(node, index) in containerNodes"
+      :key="`node_${index}`">
+      <h2 class="group-name">{{`${$t('容器节点信息')}(${index + 1})`}}</h2>
+      <ul class="property-list">
+        <li class="property-item"
+          v-for="property in containerNodeProperties"
+          :key="property.id"
+          :id="`property-item-${property.id}`">
+          <span class="property-name" v-bk-overflow-tips>
+            {{property.bk_property_name}}
+          </span>
+          <span :class="['property-value']">
+            <cmdb-property-value
+              :is-show-overflow-tips="true"
+              :ref="`property-value-${property.id}`"
+              :value="node[property.bk_property_id]"
+              :property="property">
+            </cmdb-property-value>
+          </span>
+          <template v-if="!$tools.isEmptyPropertyValue(node[property.bk_property_id])">
+            <div class="copy-box">
+              <i class="property-copy icon-cc-details-copy" @click="handleCopy(property.id)"></i>
+              <transition name="fade">
+                <span class="copy-tips"
+                  :style="{ width: $i18n.locale === 'en' ? '100px' : '70px' }"
+                  v-if="showCopyTips === property.id">
+                  {{$t('复制成功')}}
+                </span>
+              </transition>
+            </div>
           </template>
         </li>
       </ul>
@@ -116,6 +168,16 @@
       }
     },
     mixins: [authMixin, readonlyMixin],
+    props: {
+      containerNodes: {
+        type: Array,
+        default: () => ([])
+      },
+      containerNodeProperties: {
+        type: Array,
+        default: () => ([])
+      }
+    },
     data() {
       return {
         editState: {
@@ -232,8 +294,8 @@
         this.editState.value = null
       },
       handleCopy(propertyId) {
-        const component = this.$refs[`property-value-${propertyId}`]
-        const copyText = component[0] ? component[0].$el.innerText : ''
+        const [component] = this.$refs[`property-value-${propertyId}`]
+        const copyText = component?.getCopyValue() ?? ''
         this.$copyText(copyText).then(() => {
           this.showCopyTips = propertyId
           const timer = setTimeout(() => {
@@ -273,7 +335,7 @@
         }
     }
     .property-list {
-        width: 1000px;
+        width: 1208px;
         margin: 25px 0 0 0;
         color: #63656e;
         display: flex;
@@ -294,11 +356,12 @@
             }
             .property-name {
                 position: relative;
-                width: 160px;
+                width: 260px;
                 line-height: 32px;
                 padding: 0 16px 0 36px;
                 font-size: 14px;
                 color: #63656E;
+                text-align: right;
                 @include ellipsis;
                 &:after {
                     position: absolute;
@@ -311,12 +374,7 @@
                 max-width: 286px;
                 font-size: 14px;
                 color: #313237;
-                overflow:hidden;
-                text-overflow:ellipsis;
                 word-break: break-all;
-                display: -webkit-box;
-                -webkit-line-clamp: 2;
-                -webkit-box-orient: vertical;
                 &.is-loading {
                     font-size: 0;
                     &:before {
@@ -330,6 +388,15 @@
                 }
                 .user-selector {
                     font-size: 14px !important;
+                }
+
+                .value-default-theme {
+                    width: 100%;
+                    text-overflow: ellipsis;
+                    overflow: hidden;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
                 }
             }
             .property-edit-btn {

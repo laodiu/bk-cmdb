@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <bk-form form-type="vertical">
     <bk-form-item>
@@ -34,6 +46,8 @@
   import FilterStore from './store'
   import Utils from './utils'
   import { mapGetters } from 'vuex'
+  import { isContainerObject } from '@/service/container/common'
+
   export default {
     components: {
       OperatorSelector
@@ -89,17 +103,22 @@
           bk_property_type: propertyType
         } = this.property
         const normal = `cmdb-search-${propertyType}`
-        if (modelId === 'biz' && propertyId === 'bk_biz_name' && FilterStore.condition[this.property.id].operator !== '$regex') {
+
+        if (modelId === 'biz' && propertyId === 'bk_biz_name' && this.operator !== '$regex') {
           return `cmdb-search-${modelId}`
         }
+
         if (!FilterStore.bizId) {
           return normal
         }
+
         const isSetName = modelId === 'set' && propertyId === 'bk_set_name'
         const isModuleName = modelId === 'module' && propertyId === 'bk_module_name'
-        if (isSetName || isModuleName) {
+
+        if ((isSetName || isModuleName) && this.operator !== '$regex') {
           return `cmdb-search-${modelId}`
         }
+
         return normal
       },
       getBindProps() {
@@ -109,13 +128,20 @@
         }
         const {
           bk_obj_id: modelId,
-          bk_property_id: propertyId
+          bk_property_id: propertyId,
+          bk_property_type: propertyType
         } = this.property
         const isSetName = modelId === 'set' && propertyId === 'bk_set_name'
         const isModuleName = modelId === 'module' && propertyId === 'bk_module_name'
         if (isSetName || isModuleName) {
           return Object.assign(props, { bizId: FilterStore.bizId })
         }
+
+        // 容器对象标签属性，需要注入标签kv数据作为选项
+        if (isContainerObject(modelId) && propertyType === 'map') {
+          return Object.assign(props, { options: FilterStore.containerPropertyMapValue?.[modelId]?.[propertyId] })
+        }
+
         return props
       },
       resetCondition() {

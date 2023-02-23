@@ -28,6 +28,7 @@ import (
 	"configcenter/src/common/mapstr"
 	"configcenter/src/common/metadata"
 	"configcenter/src/common/util"
+	"configcenter/src/scene_server/topo_server/logics/inst"
 )
 
 // AssociationOperationInterface association operation methods
@@ -40,6 +41,8 @@ type AssociationOperationInterface interface {
 	// FindAssociationByObjectAssociationID find association by objid and asstid
 	FindAssociationByObjectAssociationID(kit *rest.Kit, objID string,
 		asstIDArr []string) ([]metadata.Association, errors.CCError)
+	// SetProxy proxy the interface
+	SetProxy(asst inst.AssociationOperationInterface)
 }
 
 // NewAssociationOperation create a new association operation instance
@@ -54,6 +57,12 @@ func NewAssociationOperation(client apimachinery.ClientSetInterface,
 type association struct {
 	clientSet   apimachinery.ClientSetInterface
 	authManager *extensions.AuthManager
+	asst        inst.AssociationOperationInterface
+}
+
+// SetProxy proxy the interface
+func (assoc *association) SetProxy(asst inst.AssociationOperationInterface) {
+	assoc.asst = asst
 }
 
 // ImportInstAssociation add instance association by excel
@@ -109,7 +118,7 @@ func (assoc *association) FindAssociationByObjectAssociationID(kit *rest.Kit, ob
 
 type importAssocInst struct {
 	instID int64
-	//strings.Joion([]string{property name, property value}, "=")|true
+	// strings.Joion([]string{property name, property value}, "=")|true
 	attrNameVal map[string]bool
 }
 
@@ -132,9 +141,9 @@ type importAssociation struct {
 	objIDProperty map[string]metadata.Attribute
 
 	parseImportDataErr map[int]string
-	//map[objID][]condition.Condition， 查询与当前操作模型有关联关系的实例参数
+	// map[objID][]condition.Condition， 查询与当前操作模型有关联关系的实例参数
 	queryAsstInstCondArr map[string][]mapstr.MapStr
-	//[]condition.Condition, 查询当前操作模型的的实例参数
+	// []condition.Condition, 查询当前操作模型的的实例参数
 	queryInstCondArr []mapstr.MapStr
 
 	// map[objID][instance id]strings.Join([]string{property name, property value}, "=")[]importAssocInst
@@ -332,6 +341,17 @@ func (ia *importAssociation) checkExcelAssociationOperate(idx int, srcInstID, ds
 		}
 
 		if isExist {
+			return false
+		}
+
+		input := &metadata.CreateAssociationInstRequest{
+			ObjectAsstID: asstInfo.ObjectAsstID,
+			InstID:       srcInstID,
+			AsstInstID:   dstInstID,
+		}
+
+		if err = ia.cli.asst.CheckInstAsstMapping(ia.kit, ia.objID, asst.Mapping, input); err != nil {
+			ia.parseImportDataErr[idx] = err.Error()
 			return false
 		}
 
@@ -556,7 +576,7 @@ func (ia *importAssociation) getInstDataByQueryCondArr() error {
 	return nil
 }
 
-// 获取模型实例数据
+// getObjectInstDataByCondArr 获取模型实例数据
 func (ia *importAssociation) getObjectInstDataByCondArr(objID string, valArr []mapstr.MapStr,
 	attrs map[string]metadata.Attribute) ([]mapstr.MapStr, error) {
 
@@ -593,7 +613,7 @@ func (ia *importAssociation) getInstDataByObjIDCondArr(objID, instIDKey string, 
 	attrs map[string]metadata.Attribute) ([]mapstr.MapStr, error) {
 
 	var fields []string
-	for _, attr := range attrs { //ia.asstObjIDProperty[objID] {
+	for _, attr := range attrs { // ia.asstObjIDProperty[objID] {
 		fields = append(fields, attr.PropertyID)
 	}
 
@@ -629,7 +649,7 @@ func (ia *importAssociation) parseInstToImportAssociationInstInfo(objID, instIDK
 	attrs map[string]metadata.Attribute) (map[string][]*importAssocInst, error) {
 
 	instID, err := inst.Int64(instIDKey)
-	//inst info can not found
+	// inst info can not found
 	if err != nil {
 		blog.Warnf("get %s field from %s model error, err: %v, rid:%s", instID, objID, err, ia.kit.Rid)
 		return nil, err
@@ -642,7 +662,7 @@ func (ia *importAssociation) parseInstToImportAssociationInstInfo(objID, instIDK
 
 	for _, attr := range attrs {
 		val, err := inst.String(attr.PropertyID)
-		//inst info can not found
+		// inst info can not found
 		if err != nil {
 			blog.Warnf("get %s field from %s model error, err: %v, rid: %s", attr.PropertyID, objID, err, ia.kit.Rid)
 			return nil, err
@@ -823,7 +843,7 @@ func convStrToCCType(val string, attr metadata.Attribute) (interface{}, error) {
 		}
 		return getEnumIDByName(val, option), nil
 	case common.FieldTypeInt:
-		return util.GetInt64ByInterface(val)
+		return strconv.ParseInt(val, 10, 64)
 	case common.FieldTypeFloat:
 		return util.GetFloat64ByInterface(val)
 

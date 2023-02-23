@@ -21,6 +21,7 @@ var (
 	}
 )
 
+// ResourceTypeIDMap TODO
 var ResourceTypeIDMap = map[TypeID]string{
 	Business:                 "业务",
 	BizSet:                   "业务集",
@@ -34,6 +35,7 @@ var ResourceTypeIDMap = map[TypeID]string{
 	SysModelEvent:            "模型列表",
 	MainlineModelEvent:       "资源事件",
 	InstAsstEvent:            "实例关联事件",
+	KubeWorkloadEvent:        "容器工作负载事件",
 	// SysInstance:               "实例",
 	SysAssociationType:        "关联类型",
 	SysOperationStatistic:     "运营统计",
@@ -65,6 +67,7 @@ func GenerateResourceTypes(models []metadata.Object) []ResourceType {
 	return resourceTypeList
 }
 
+// GenerateStaticResourceTypes TODO
 func GenerateStaticResourceTypes() []ResourceType {
 	resourceTypeList := make([]ResourceType, 0)
 
@@ -97,7 +100,7 @@ func genBusinessResources() []ResourceType {
 			DescriptionEn: "hosts under a business or in resource pool",
 			Parents: []Parent{{
 				SystemID: SystemIDCMDB,
-				//ResourceID: Module,
+				// ResourceID: Module,
 				ResourceID: Business,
 			}, {
 				SystemID:   SystemIDCMDB,
@@ -205,7 +208,7 @@ func genBusinessResources() []ResourceType {
 			Version: 1,
 		},
 		// only for host topology usage, not related to actions
-		//{
+		// {
 		//	ID:            Set,
 		//	Name:          ResourceTypeIDMap[Set],
 		//	NameEn:        "Set",
@@ -216,8 +219,8 @@ func genBusinessResources() []ResourceType {
 		//		Path: "/auth/v3/find/resource",
 		//	},
 		//	Version: 1,
-		//},
-		//{
+		// },
+		// {
 		//	ID:            Module,
 		//	Name:          ResourceTypeIDMap[Module],
 		//	NameEn:        "Module",
@@ -231,7 +234,7 @@ func genBusinessResources() []ResourceType {
 		//		Path: "/auth/v3/find/resource",
 		//	},
 		//	Version: 1,
-		//},
+		// },
 	}
 }
 
@@ -448,6 +451,17 @@ func genPublicResources() []ResourceType {
 			Description:   "实例关联事件",
 			DescriptionEn: "instance association event",
 			Parents:       nil,
+			ProviderConfig: ResourceConfig{
+				Path: "/auth/v3/find/resource",
+			},
+			Version: 1,
+		},
+		{
+			ID:            KubeWorkloadEvent,
+			Name:          ResourceTypeIDMap[KubeWorkloadEvent],
+			NameEn:        "Kube Workload Event",
+			Description:   "容器工作负载事件",
+			DescriptionEn: "kube workload event",
 			ProviderConfig: ResourceConfig{
 				Path: "/auth/v3/find/resource",
 			},

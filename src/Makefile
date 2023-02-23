@@ -1,8 +1,9 @@
 
 IMAGE?=image_placeholder
 NPM?=npm
+PROJECT_PATH=$(shell cd ../;  pwd)
 
-include $(realpath $(firstword $(subst :, ,${GOPATH}))/src/configcenter/scripts/Makefile)
+include ../scripts/Makefile
 
 .PHONY:default
 default:
@@ -11,6 +12,8 @@ default:
 	@rm -rf "./ui/node_modules"
 	@cd  $(SCRIPT_DIR) && bash ./build.sh
 	@cd $(SCRIPT_DIR) && python ./generate.py -t '$(BIN_PATH)' -i '${IMAGE}' -o '$(BIN_PATH)/docker'
+	@mkdir $(BIN_PATH)/changelog_user/
+	@cp -R ${DOCS_DIR}/support-file/changelog_user/*  $(BIN_PATH)/changelog_user
 	@echo -e "\033[34mbuilding web... \033[0m"
 	@cd $(SOURCE_ROOT)/ui && bash ./build.sh ${NPM} ${BIN_PATH}
 
@@ -21,6 +24,8 @@ linux:
 	@rm -rf "./ui/node_modules"
 	@cd  $(SCRIPT_DIR) && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 bash ./build.sh
 	@cd $(SCRIPT_DIR) && python ./generate.py -t '$(BIN_PATH)' -i '${IMAGE}' -o '$(BIN_PATH)/docker'
+	@mkdir $(BIN_PATH)/changelog_user/
+	@cp -R ${DOCS_DIR}/support-file/changelog_user/*  $(BIN_PATH)/changelog_user
 	@echo -e "\033[34mbuilding web... \033[0m"
 	@cd $(SOURCE_ROOT)/ui && bash ./build.sh ${NPM} ${BIN_PATH}
 
@@ -31,6 +36,8 @@ server:
 	@rm -rf "./ui/node_modules"
 	@cd  $(SCRIPT_DIR) &&  bash ./build.sh
 	@cd $(SCRIPT_DIR) && python ./generate.py -t '$(BIN_PATH)' -i '${IMAGE}' -o '$(BIN_PATH)/docker'
+	@mkdir $(BIN_PATH)/changelog_user/
+	@cp -R ${DOCS_DIR}/support-file/changelog_user/*  $(BIN_PATH)/changelog_user
 
 .PHONY:ui
 ui:
@@ -62,6 +69,8 @@ enterprise:
 	mkdir -p $(SOURCE_ROOT)/bin/enterprise/cmdb/language/
 	mkdir -p $(SOURCE_ROOT)/bin/enterprise/cmdb/web/
 	mkdir -p $(SOURCE_ROOT)/bin/enterprise/cmdb/monstache/etc
+	mkdir -p $(SOURCE_ROOT)/bin/enterprise/cmdb/support-files/
+	mkdir -p $(SOURCE_ROOT)/bin/enterprise/cmdb/server/changelog_user/
 
 	cp -R ${RESOURCE_DIR}/errors/*  $(SOURCE_ROOT)/bin/enterprise/cmdb/errors
 	cp -R ${RESOURCE_DIR}/language/*  $(SOURCE_ROOT)/bin/enterprise/cmdb/language
@@ -69,6 +78,10 @@ enterprise:
 	cp -R ${BIN_PATH}/web/*  $(SOURCE_ROOT)/bin/enterprise/cmdb/web/
 	cp  ${BIN_PATH}/cmdb_*/cmdb_*  $(SOURCE_ROOT)/bin/enterprise/cmdb/server/bin/
 	cp  ${BIN_PATH}/tool_*/tool_*  $(SOURCE_ROOT)/bin/enterprise/cmdb/server/bin/
+	mv ${DOCS_DIR}/support-file/config/projects.yaml $(SOURCE_ROOT)/bin/enterprise/cmdb/projects.yaml
+	cp -R ${DOCS_DIR}/support-file/config/*  $(SOURCE_ROOT)/bin/enterprise/cmdb/support-files
+	cp -R ${DOCS_DIR}/support-file/changelog/*  $(SOURCE_ROOT)/bin/enterprise/cmdb
+	cp -R ${DOCS_DIR}/support-file/changelog_user/*  $(SOURCE_ROOT)/bin/enterprise/cmdb/server/changelog_user
 
 .PHONY:clean
 clean:

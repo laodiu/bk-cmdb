@@ -21,12 +21,14 @@ import (
 	"configcenter/src/scene_server/admin_server/upgrader"
 	"configcenter/src/storage/dal"
 	"configcenter/src/storage/dal/types"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func addCloudHostIndex(ctx context.Context, db dal.RDB, conf *upgrader.Config) error {
 	tableName := common.BKTableNameBaseHost
 	index := types.Index{
-		Keys:       map[string]int32{"bk_cloud_inst_id": 1},
+		Keys:       bson.D{{"bk_cloud_inst_id", 1}},
 		Name:       "cloudInstID",
 		Unique:     false,
 		Background: true,
@@ -47,7 +49,7 @@ func addCloudHostIndex(ctx context.Context, db dal.RDB, conf *upgrader.Config) e
 	}
 
 	err = db.Table(tableName).CreateIndex(ctx, index)
-	if err != nil {
+	if err != nil && !db.IsDuplicatedError(err) {
 		blog.ErrorJSON("add index %s for table %s failed, err:%s", index, tableName, err)
 		return err
 	}

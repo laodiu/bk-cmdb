@@ -29,6 +29,7 @@ import (
 	"configcenter/src/common/util"
 )
 
+// SearchHost TODO
 func (lgc *Logics) SearchHost(kit *rest.Kit, data *metadata.HostCommonSearch, isDetail bool) (*metadata.SearchHost, error) {
 	searchHostInst := NewSearchHost(kit, lgc, data)
 	searchHostInst.ParseCondition()
@@ -99,7 +100,7 @@ type searchHost struct {
 	topoShowSection searchHostTopologyShowSection
 
 	conds searchHostConds
-	//search end, condition not dsetAppConfigata
+	// search end, condition not dsetAppConfigata
 	noData       bool
 	idArr        searchHostIDArr
 	hostInfoArr  []hostInfoStruct // int64 is hostID
@@ -135,6 +136,7 @@ type searchHostInterface interface {
 	FillTopologyData() ([]mapstr.MapStr, int, errors.CCError)
 }
 
+// NewSearchHost TODO
 func NewSearchHost(kit *rest.Kit, lgc *Logics, hostSearchParam *metadata.HostCommonSearch) searchHostInterface {
 	sh := &searchHost{
 		kit:             kit,
@@ -152,6 +154,7 @@ func NewSearchHost(kit *rest.Kit, lgc *Logics, hostSearchParam *metadata.HostCom
 	return sh
 }
 
+// ParseCondition TODO
 func (sh *searchHost) ParseCondition() {
 
 	for _, object := range sh.hostSearchParam.Condition {
@@ -180,6 +183,7 @@ func (sh *searchHost) ParseCondition() {
 
 }
 
+// SearchHostByConds TODO
 func (sh *searchHost) SearchHostByConds() errors.CCError {
 
 	err := sh.searchByTopo()
@@ -201,6 +205,7 @@ func (sh *searchHost) SearchHostByConds() errors.CCError {
 
 }
 
+// FillTopologyData TODO
 func (sh *searchHost) FillTopologyData() ([]mapstr.MapStr, int, errors.CCError) {
 
 	if sh.noData {
@@ -366,7 +371,7 @@ func (sh *searchHost) fillHostAppInfo(appInfoLevelInst map[int64]*appLevelInfo, 
 
 	appInfoArr := make([]mapstr.MapStr, 0)
 	var err error
-	//appdata
+	// appdata
 	for appID, appLevelInfo := range appInfoLevelInst {
 
 		appInfo, mapOk := sh.cacheInfoMap.appInfoMap[appID]
@@ -513,8 +518,8 @@ func (sh *searchHost) searchByTopo() errors.CCError {
 	if err != nil {
 		return err
 	}
-	//Query host information based on associated objects, alternate code
-	//sh.searchByAssocation()
+	// Query host information based on associated objects, alternate code
+	// sh.searchByAssocation()
 	err = sh.searchByPlatCondition()
 	if err != nil {
 		return err
@@ -642,7 +647,7 @@ func (sh *searchHost) searchByModule() errors.CCError {
 				Value:    sh.idArr.moduleHostConfig.appIDArr,
 			})
 		}
-		//search module by cond
+		// search module by cond
 		cond := metadata.ConditionWithTime{
 			Condition:     sh.conds.moduleCond.Condition,
 			TimeCondition: sh.conds.moduleCond.TimeCondition,
@@ -823,71 +828,20 @@ func (sh *searchHost) appendHostTopoConds() errors.CCError {
 		hostIDArr = respHostIDs
 	}
 
-	// 合并两种涞源的根据 host_id 查询的 condition
-	// 详情见issue: https://github.com/Tencent/bk-cmdb/issues/2461
-	hostIDConditionExist := false
-	for idx, cond := range sh.conds.hostCond.Condition {
-		if cond.Field != common.BKHostIDField {
-			continue
-		}
-
-		// merge two condition
-		// {"field": "bk_host_id", "operator": "$eq", "value": 1}
-		// {"field": "bk_host_id", "operator": "$eq", "value": [1, 2]}
-		// ==> {"field": "bk_host_id", "operator": "", "value": {"$in": [1,2], "$eq": 1}}
-		hostIDConditionExist = true
-		if cond.Operator != common.BKDBIN {
-			// it's somewhat trick here to use common.BKDBEQ as merge operator
-			cond = metadata.ConditionItem{
-				Field:    common.BKHostIDField,
-				Operator: common.BKDBEQ,
-				Value: map[string]interface{}{
-					cond.Operator: cond.Value,
-					common.BKDBIN: hostIDArr,
-				},
-			}
-			sh.conds.hostCond.Condition[idx] = cond
-		} else {
-			// intersection of two array
-			value, ok := cond.Value.([]interface{})
-			if ok == false {
-				blog.Errorf("invalid query condition with $in operator, value must be []int64, but got: %+v, rid: %s", cond.Value, sh.ccRid)
-				return sh.ccErr.New(common.CCErrCommParamsIsInvalid, common.BKHostIDField)
-			}
-			hostIDMap := make(map[int64]bool)
-			for _, hostID := range hostIDArr {
-				hostIDMap[hostID] = true
-			}
-			shareIDs := make([]int64, 0)
-			for _, hostID := range value {
-				id, err := util.GetInt64ByInterface(hostID)
-				if err != nil {
-					blog.Errorf("invalid query condition with $in operator, value must be []int64, but got: %+v, rid: %s", cond.Value, sh.ccRid)
-					return sh.ccErr.New(common.CCErrCommParamsIsInvalid, common.BKHostIDField)
-				}
-
-				if hostIDMap[id] {
-					shareIDs = append(shareIDs, id)
-				}
-			}
-			sh.conds.hostCond.Condition[idx].Value = shareIDs
-		}
+	cond, mergeErr := MergeHostIDToCond(sh.kit, sh.conds.hostCond.Condition, hostIDArr)
+	if mergeErr != nil {
+		return mergeErr
 	}
-	if hostIDConditionExist == false {
-		sh.conds.hostCond.Condition = append(sh.conds.hostCond.Condition, metadata.ConditionItem{
-			Field:    common.BKHostIDField,
-			Operator: common.BKDBIN,
-			Value:    hostIDArr,
-		})
-	}
+	sh.conds.hostCond.Condition = cond
 
 	return nil
 }
 
+// searchByAssociation TODO
 // Query host information based on associated objects, alternate code
 func (sh *searchHost) searchByAssociation() errors.CCError {
 	instAsstHostIDArr := make([]int64, 0)
-	//search host id by object
+	// search host id by object
 	firstCond := true
 	if len(sh.conds.objectCondMap) > 0 {
 		for objID, objCond := range sh.conds.objectCondMap {
@@ -918,7 +872,7 @@ func (sh *searchHost) searchByAssociation() errors.CCError {
 }
 
 func (sh *searchHost) tryParseAppID() {
-	//search appID by cond
+	// search appID by cond
 	if -1 != sh.hostSearchParam.AppID && 0 != sh.hostSearchParam.AppID {
 		sh.conds.appCond.Condition = append(sh.conds.appCond.Condition, metadata.ConditionItem{
 			Field:    common.BKAppIDField,
@@ -926,4 +880,71 @@ func (sh *searchHost) tryParseAppID() {
 			Value:    sh.hostSearchParam.AppID,
 		})
 	}
+}
+
+// MergeHostIDToCond merge host id to host query condition
+func MergeHostIDToCond(kit *rest.Kit, conds []metadata.ConditionItem, hostIDs []int64) (
+	[]metadata.ConditionItem, error) {
+
+	// 合并两种涞源的根据 host_id 查询的 condition
+	// 详情见issue: https://github.com/Tencent/bk-cmdb/issues/2461
+	hostIDConditionExist := false
+	for idx, cond := range conds {
+		if cond.Field != common.BKHostIDField {
+			continue
+		}
+
+		// merge two condition
+		// {"field": "bk_host_id", "operator": "$eq", "value": 1}
+		// {"field": "bk_host_id", "operator": "$eq", "value": [1, 2]}
+		// ==> {"field": "bk_host_id", "operator": "", "value": {"$in": [1,2], "$eq": 1}}
+		hostIDConditionExist = true
+		if cond.Operator != common.BKDBIN {
+			// it's somewhat trick here to use common.BKDBEQ as merge operator
+			cond = metadata.ConditionItem{
+				Field:    common.BKHostIDField,
+				Operator: common.BKDBEQ,
+				Value: map[string]interface{}{
+					cond.Operator: cond.Value,
+					common.BKDBIN: hostIDs,
+				},
+			}
+			conds[idx] = cond
+		} else {
+			// intersection of two array
+			value, ok := cond.Value.([]interface{})
+			if ok == false {
+				blog.Errorf("invalid query condition with $in operator, value must be []int64, but got: %+v, rid: %s",
+					cond.Value, kit.Rid)
+				return nil, kit.CCError.New(common.CCErrCommParamsIsInvalid, common.BKHostIDField)
+			}
+			hostIDMap := make(map[int64]bool)
+			for _, hostID := range hostIDs {
+				hostIDMap[hostID] = true
+			}
+			shareIDs := make([]int64, 0)
+			for _, hostID := range value {
+				id, err := util.GetInt64ByInterface(hostID)
+				if err != nil {
+					blog.Errorf("invalid query condition with $in operator, value must be []int64, but got: %+v, "+
+						"rid: %s", cond.Value, kit.Rid)
+					return nil, kit.CCError.New(common.CCErrCommParamsIsInvalid, common.BKHostIDField)
+				}
+
+				if hostIDMap[id] {
+					shareIDs = append(shareIDs, id)
+				}
+			}
+			conds[idx].Value = shareIDs
+		}
+	}
+	if !hostIDConditionExist {
+		conds = append(conds, metadata.ConditionItem{
+			Field:    common.BKHostIDField,
+			Operator: common.BKDBIN,
+			Value:    hostIDs,
+		})
+	}
+
+	return conds, nil
 }

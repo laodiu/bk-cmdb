@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div :class="['template-tree', mode]" v-bkloading="{ isLoading: $loading(request.topo) }">
     <div class="node-root clearfix">
@@ -13,14 +25,14 @@
         @click="handleChildClick(service)">
         <i class="node-icon fl">{{moduleName[0]}}</i>
         <span class="child-options fr" v-if="mode !== 'view'">
-          <i class="options-view icon icon-cc-show" @click="handleViewService(service)"></i>
+          <bk-link class="action-link" @click="handleViewService(service)">查看详情</bk-link>
           <bk-popover v-if="serviceExistHost(service.id)">
-            <i class="options-delete icon icon-cc-tips-close disabled"></i>
+            <bk-link class="action-link disabled">删除</bk-link>
             <i18n path="该模块下有主机不可删除" tag="p" class="service-tips" slot="content">
-              <span place="link" @click="handleGoTopoBusiness(service)">{{$t('跳转查看')}}</span>
+              <template #link><span @click="handleGoTopoBusiness(service)">{{$t('跳转查看')}}</span></template>
             </i18n>
           </bk-popover>
-          <i v-else class="options-delete icon icon-cc-tips-close" @click="handleDeleteService(index)"></i>
+          <bk-link v-else class="action-link" @click="handleDeleteService(index)">删除</bk-link>
         </span>
         <span class="child-name">{{service.name}}</span>
       </li>
@@ -34,8 +46,8 @@
     <bk-dialog
       header-position="left"
       :draggable="false"
-      :mask-close="false"
-      :width="759"
+      :mask-close="dialog.name !== 'add'"
+      :width="840"
       :title="dialog.title"
       v-model="dialog.visible"
       @after-leave="handleDialogClose">
@@ -50,9 +62,12 @@
       <template slot="footer">
         <div class="dialog-footer" v-if="dialog.name === 'add'">
           <div class="summary" v-if="serviceTemplateCount > 0">
-            <span class="stat">
-              已选<em class="num">{{selectedServiceCount}}</em>个
-            </span>
+            <i18n path="已选个数">
+              <template #count>
+                <span class="stat">
+                  <em class="num">{{selectedServiceCount}}</em>
+                </span></template>
+            </i18n>
             <bk-link class="to-template" theme="primary" icon="icon-cc-share" @click="handleLinkClick">
               {{$t('跳转服务模板')}}
             </bk-link>
@@ -77,8 +92,15 @@
       serviceTemplateSelector,
       serviceTemplateInfo
     },
-    /* eslint-disable-next-line */
-    props: ['mode', 'templateId'],
+    props: {
+      mode: {
+        type: String,
+        required: true
+      },
+      templateId: {
+        type: Number
+      }
+    },
     data() {
       return {
         templateName: this.$t('模板集群名称'),
@@ -261,13 +283,12 @@
     $iconDisabledColor: #D8D8D8;
     .template-tree {
         padding: 10px 0 10px 20px;
-        border: 1px solid #C4C6CC;
-        background-color: #fff;
-        max-height: calc(100vh - 330px);
-        @include scrollbar-y;
+        border: 1px dashed #C4C6CC;
+        background-color: #FAFBFD;
+        max-width: 960px;
         &:not(.view) {
             .node-child:hover {
-                background-color: rgba(240,241,245, .6);
+                background-color: rgba(240, 241, 245, .6);
                 .child-name {
                     color: $highlightColor;
                 }
@@ -275,9 +296,6 @@
                     display: block;
                 }
             }
-        }
-        &.create {
-            max-height: calc(100vh - 260px);
         }
     }
     .node-icon {
@@ -368,28 +386,19 @@
                 margin-right: 9px;
                 font-size: 0;
                 color: $iconColor;
-                .options-view {
-                    font-size: 18px;
-                    cursor: pointer;
-                    &:hover {
-                        color: $highlightColor;
-                    }
-                }
-                .options-delete {
-                    width: 24px;
-                    height: 24px;
-                    margin-left: 14px;
+                .action-link {
+                  margin: 0 4px;
+                  color: #c4c2ce;
+                  ::v-deep .bk-link-text {
                     font-size: 12px;
-                    text-align: center;
-                    line-height: 24px;
-                    cursor: pointer;
-                    &:hover {
-                        color: $highlightColor;
-                    }
-                    &.disabled:hover {
-                        color: $iconDisabledColor;
-                        cursor: not-allowed;
-                    }
+                  }
+
+                  &:not(.disabled):hover {
+                    color: $highlightColor;
+                  }
+                  &.disabled:hover {
+                    cursor: not-allowed;
+                  }
                 }
             }
         }

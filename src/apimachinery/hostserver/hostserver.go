@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package hostserver host server api client
 package hostserver
 
 import (
@@ -19,10 +20,13 @@ import (
 
 	"configcenter/src/apimachinery/rest"
 	"configcenter/src/apimachinery/util"
+	"configcenter/src/common/errors"
 	"configcenter/src/common/metadata"
 	"configcenter/src/common/paraparse"
+	"configcenter/src/kube/types"
 )
 
+// HostServerClientInterface TODO
 type HostServerClientInterface interface {
 	DeleteHostBatch(ctx context.Context, h http.Header, dat interface{}) (resp *metadata.Response, err error)
 	GetHostInstanceProperties(ctx context.Context, ownerID string, hostID string, h http.Header) (resp *metadata.HostInstancePropertiesResult, err error)
@@ -42,6 +46,8 @@ type HostServerClientInterface interface {
 
 	AddHostMultiAppModuleRelation(ctx context.Context, h http.Header, dat *metadata.CloudHostModuleParams) (resp *metadata.Response, err error)
 	TransferHostModule(ctx context.Context, h http.Header, params map[string]interface{}) (resp *metadata.Response, err error)
+	TransferHostAcrossBusiness(ctx context.Context, header http.Header,
+		option *metadata.TransferHostAcrossBusinessParameter) errors.CCErrorCoder
 
 	MoveHost2EmptyModule(ctx context.Context, h http.Header, dat *metadata.DefaultModuleHostConfigParams) (resp *metadata.Response, err error)
 	MoveHost2FaultModule(ctx context.Context, h http.Header, dat *metadata.DefaultModuleHostConfigParams) (resp *metadata.Response, err error)
@@ -58,6 +64,7 @@ type HostServerClientInterface interface {
 	UpdateHostBatch(ctx context.Context, h http.Header, dat interface{}) (resp *metadata.Response, err error)
 	UpdateHostPropertyBatch(ctx context.Context, h http.Header, data map[string]interface{}) (resp *metadata.Response, err error)
 
+	// CreateDynamicGroup TODO
 	// dynamic group interfaces.
 	CreateDynamicGroup(ctx context.Context, header http.Header, data map[string]interface{}) (resp *metadata.IDResult, err error)
 	UpdateDynamicGroup(ctx context.Context, bizID, id string, header http.Header, data map[string]interface{}) (resp *metadata.BaseResp, err error)
@@ -75,8 +82,16 @@ type HostServerClientInterface interface {
 	SearchCloudArea(ctx context.Context, h http.Header, params map[string]interface{}) (resp *metadata.SearchResp, err error)
 	DeleteCloudArea(ctx context.Context, h http.Header, cloudID int64) (resp *metadata.Response, err error)
 	FindCloudAreaHostCount(ctx context.Context, header http.Header, option metadata.CloudAreaHostCount) (resp *metadata.CloudAreaHostCountResult, err error)
+	// SearchHostWithKube search host with k8s condition
+	SearchKubeHost(ctx context.Context, h http.Header, req types.SearchHostOption) (*metadata.SearchHost,
+		errors.CCErrorCoder)
+	AddCloudHostToBiz(ctx context.Context, header http.Header, option *metadata.AddCloudHostToBizParam) (
+		*metadata.RspIDs, errors.CCErrorCoder)
+	DeleteCloudHostFromBiz(ctx context.Context, header http.Header,
+		option *metadata.DeleteCloudHostFromBizParam) errors.CCErrorCoder
 }
 
+// NewHostServerClientInterface TODO
 func NewHostServerClientInterface(c *util.Capability, version string) HostServerClientInterface {
 	base := fmt.Sprintf("/host/%s", version)
 	return &hostServer{

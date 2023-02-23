@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="cmdb-form-process-table">
     <cmdb-form-table
@@ -5,34 +17,33 @@
       v-model="localValue"
       :options="options"
       :mode="mode">
-      <div class="process-table-content"
-        v-for="column in options"
-        slot-scope="rowProps"
-        :slot="column.bk_property_id"
-        :key="`row-${rowProps.index}-${column.bk_property_id}`">
-        <component class="content-value"
-          size="small"
-          font-size="small"
-          v-bind="$tools.getValidateEvents(column)"
-          v-validate="getRules(rowProps, column)"
-          :disabled="isLocked(rowProps)"
-          :data-vv-name="column.bk_property_id"
-          :data-vv-as="column.bk_property_name"
-          :data-vv-scope="column.bk_property_group || 'bind_info'"
-          :is="getComponentType(column)"
-          :options="column.option || []"
-          :placeholder="getPlaceholder(column)"
-          :value="localValue[rowProps.index][column.bk_property_id]"
-          :auto-select="false"
-          @input="handleColumnValueChange(rowProps, ...arguments)">
-        </component>
-        <process-form-append class="content-lock"
-          v-if="isLocked(rowProps)"
-          :property="column"
-          :service-template-id="serviceTemplateId"
-          :biz-id="bizId">
-        </process-form-append>
-      </div>
+      <template v-for="column in options" #[column.bk_property_id]="rowProps">
+        <div class="process-table-content"
+          :key="`row-${rowProps.index}-${column.bk_property_id}`">
+          <component class="content-value"
+            size="small"
+            font-size="small"
+            v-bind="$tools.getValidateEvents(column)"
+            v-validate="getRules(rowProps, column)"
+            :disabled="isLocked(rowProps)"
+            :data-vv-name="column.bk_property_id"
+            :data-vv-as="column.bk_property_name"
+            :data-vv-scope="column.bk_property_group || 'bind_info'"
+            :is="getComponentType(column)"
+            :options="column.option || []"
+            :placeholder="getPlaceholder(column)"
+            :value="localValue[rowProps.index][column.bk_property_id]"
+            :auto-select="false"
+            @input="handleColumnValueChange(rowProps, ...arguments)">
+          </component>
+          <process-form-append class="content-lock"
+            v-if="isLocked(rowProps)"
+            :property="column"
+            :service-template-id="serviceTemplateId"
+            :biz-id="bizId">
+          </process-form-append>
+        </div>
+      </template>
     </cmdb-form-table>
     <span class="form-error" v-if="validateMsg">{{validateMsg}}</span>
   </div>
@@ -41,6 +52,8 @@
 <script>
   import ProcessFormPropertyIp from './process-form-property-ip'
   import ProcessFormAppend from './process-form-append'
+  import { MENU_BUSINESS_SERVICE_TEMPLATE_DETAILS } from '@/dictionary/menu-symbol'
+
   export default {
     components: {
       ProcessFormPropertyIp,
@@ -100,8 +113,10 @@
       },
       getRules(rowProps, property) {
         const rules = this.$tools.getValidateRules(property)
-        // 与模板配置保持一致，统一为必填
         rules.required = true
+        if (property.bk_property_id === 'ip') {
+          rules.required = false
+        }
         return rules
       },
       getComponentType(property) {
@@ -123,7 +138,7 @@
       },
       handleRedirect() {
         this.$routerActions.redirect({
-          name: 'operationalTemplate',
+          name: MENU_BUSINESS_SERVICE_TEMPLATE_DETAILS,
           params: {
             bizId: this.form.bizId,
             templateId: this.form.serviceTemplateId

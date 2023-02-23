@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="options-layout clearfix">
     <div class="options-left fl">
@@ -95,7 +107,7 @@
       @cancel="closeAssignDialog">
       <div class="assign-content" v-if="assign.show">
         <i18n class="assign-count" tag="div" path="已选择主机">
-          <span place="count">{{table.checked.length}}</span>
+          <template #count><span>{{table.checked.length}}</span></template>
         </i18n>
         <div class="assign-seleted">
           <p>{{assign.label}}</p>
@@ -104,6 +116,7 @@
             :searchable="true"
             :clearable="false"
             :disabled="$loading(assign.requestId)"
+            :loading="$loading(authRequestId)"
             :placeholder="assign.placeholder"
             v-model="assign.id">
             <bk-option v-for="option in assignOptions"
@@ -141,7 +154,7 @@
 
 <script>
   import { mapGetters } from 'vuex'
-  import { afterVerify } from '@/components/ui/auth/auth-queue.js'
+  import { AuthRequestId } from '@/components/ui/auth/auth-queue.js'
   import cmdbImport from '@/components/import/import'
   import cmdbButtonGroup from '@/components/ui/other/button-group'
   import Bus from '@/utils/bus.js'
@@ -153,6 +166,8 @@
   import FilterStore from '@/components/filters/store'
   import FilterUtils from '@/components/filters/utils'
   import hostImportService from '@/service/host/import'
+  const CUSTOM_STICKY_KEY = 'sticky-directory'
+
   export default {
     components: {
       cmdbImport,
@@ -180,15 +195,25 @@
           requestId: Symbol('assignHosts')
         },
         assignOptions: [],
-        IPWithCloudSymbol: Symbol('IPWithCloud')
+        IPWithCloudSymbol: Symbol('IPWithCloud'),
+        authRequestId: AuthRequestId,
+        assignOptionAuthedMap: {
+          biz: {},
+          dir: {}
+        },
+        currentDirectoryIdList: []
       }
     },
     computed: {
+      ...mapGetters('userCustom', ['usercustom']),
       ...mapGetters('resourceHost', [
         'activeDirectory',
         'defaultDirectory',
-        'directoryList'
+        'directorySortedList'
       ]),
+      stickyDirectory() {
+        return this.usercustom[CUSTOM_STICKY_KEY] || []
+      },
       directoryId() {
         if (this.activeDirectory) {
           return this.activeDirectory.bk_module_id
@@ -215,7 +240,7 @@
           bk_property_name: `${this.$t('云区域')}ID:IP`,
           bk_property_type: 'singlechar'
         })
-        const clipboardList = FilterStore.header.slice()
+        const clipboardList = this.$parent.tableHeader.slice()
         clipboardList.splice(1, 0, IPWithCloud)
         return clipboardList
       },
@@ -242,9 +267,16 @@
           handler: this.batchExportField,
           disabled: !this.table.pagination.count
         }]
+
         if (this.scope !== 1) {
           buttonConfig.splice(0, 1)
         }
+
+        // 已分配并且是容器搜索模式
+        if (this?.$parent?.isResourceAssigned && this?.$parent?.isContainerSearchMode) {
+          buttonConfig.splice(buttonConfig.length - 1, 1)
+        }
+
         return buttonConfig
       },
       saveAuth() {
@@ -314,6 +346,12 @@
         if (!prev._t && query.adv) {
           FilterForm.show()
         }
+      },
+      assignOptionAuthedMap: {
+        handler() {
+          this.sortAssignOptionByAuth()
+        },
+        deep: true
       }
     },
     async created() {
@@ -341,10 +379,19 @@
           HostStore.setBusinessList(this.businessList)
         }
       },
-      sortBusinessByAuth(authData) {
-        const list = this.businessList.map((item, index) => ({ ...item, is_pass: authData[index]?.is_pass }))
-        list.sort((itemA, itemB) => itemB?.is_pass - itemA?.is_pass)
-        this.businessList = list
+      sortAssignOptionByAuth() {
+        // 暂时只排序业务，目录因为有置顶逻辑且数量不多
+        if (this.assign.curSelected === 'toBusiness') {
+          const list = this.businessList.map(item => ({
+            ...item,
+            is_pass: this.assignOptionAuthedMap.biz[item.bk_biz_id]
+          }))
+          list.sort((itemA, itemB) => itemB?.is_pass - itemA?.is_pass)
+          this.businessList = list
+
+          // 使用排序后的业务列表更新列表选项
+          this.setAssignOptions(this.currentDirectoryIdList)
+        }
       },
       openAgentApp() {
         const { agent } = window.Site
@@ -364,68 +411,69 @@
         }
       },
       handleAssignHosts(id) {
-        let { directoryId } = this
-        if (!directoryId) {
-          const hosts = HostStore.getSelected()
-          directoryId = hosts[0].module[0].bk_module_id
-          const isSameModule = hosts.every((host) => {
-            const [module] = host.module
-            return module.bk_module_id === directoryId
-          })
-          if (!isSameModule) {
-            this.$error(this.$t('仅支持对相同目录下的主机进行操作'))
-            this.closeAssignDialog()
-            return false
-          }
+        this.assign.show = true
+
+        this.assignOptionAuthedMap = {
+          biz: {},
+          dir: {}
         }
+
+        const hosts = HostStore.getSelected()
+        const directoryIds = hosts.map((host) => {
+          const [module] = host.module
+          return module.bk_module_id
+        })
+        const directoryIdList = [...new Set(directoryIds)]
+
+        this.currentDirectoryIdList = directoryIdList
 
         if (id === 'toBusiness') {
           this.assign.placeholder = this.$t('请选择xx', { name: this.$t('业务') })
           this.assign.label = this.$t('业务列表')
           this.assign.title = this.$t('分配到业务空闲机', { idleSet: this.$store.state.globalConfig.config.set })
-
-          // 必要的setTimeout，因依赖dialog显示并且auth完成后
-          setTimeout(() => {
-            afterVerify((authData) => {
-              this.sortBusinessByAuth(authData)
-              // 使用排序后的业务列表更新列表选项
-              this.setAssignOptions(directoryId)
-            })
-          }, 0)
         } else {
           this.assign.placeholder = this.$t('请选择xx', { name: this.$t('目录') })
           this.assign.label = this.$t('目录列表')
           this.assign.title = this.$t('分配到主机池其他目录')
         }
 
-        this.setAssignOptions(directoryId)
-        this.assign.show = true
+        this.setAssignOptions(directoryIdList)
       },
-      setAssignOptions(directoryId) {
+      setAssignOptions(directoryIdList) {
         if (this.assign.curSelected === 'toBusiness') {
           this.assignOptions = this.businessList.map(item => ({
             id: item.bk_biz_id,
             name: `[${item.bk_biz_id}] ${item.bk_biz_name}`,
             disabled: !item?.is_pass ?? true,
-            auth: {
+            auth: directoryIdList.map(directoryId => ({
               type: this.$OPERATION.TRANSFER_HOST_TO_BIZ,
               relation: [[[directoryId], [item.bk_biz_id]]]
-            }
+            }))
           }))
         } else {
-          this.assignOptions = this.directoryList.filter(item => item.bk_module_id !== directoryId).map(item => ({
+          const directoryList = this.directorySortedList(this.stickyDirectory)
+          const directorySortedList = directoryIdList?.length === 1
+            ? directoryList.filter(item => item.bk_module_id !== directoryIdList[0])
+            : directoryList
+
+          this.assignOptions = directorySortedList.map(item => ({
             id: item.bk_module_id,
             name: item.bk_module_name,
             disabled: true,
-            auth: {
+            auth: directoryIdList.map(directoryId => ({
               type: this.$OPERATION.TRANSFER_HOST_TO_DIRECTORY,
               relation: [[[directoryId], [item.bk_module_id]]]
-            }
+            }))
           }))
         }
       },
       handleUpdateAssignAuth(option, authorized) {
         option.disabled = !authorized
+        if (this.assign.curSelected === 'toBusiness') {
+          this.$set(this.assignOptionAuthedMap.biz, option.id, authorized)
+        } else {
+          this.$set(this.assignOptionAuthedMap.dir, option.id, authorized)
+        }
       },
       closeAssignDialog() {
         this.assign.id = ''
@@ -580,7 +628,13 @@
             const { fields, exportRelation  } = state
             const params = {
               export_custom_fields: fields.value.map(property => property.bk_property_id),
-              bk_host_ids: this.table.selection.map(({ host }) => host.bk_host_id)
+              bk_host_ids: this.table.selection.map(({ host }) => host.bk_host_id),
+              export_condition: {
+                page: {
+                  start: 0,
+                  limit: this.table.selection.length
+                }
+              }
             }
             if (exportRelation.value) {
               params.object_unique_id = state.object_unique_id.value
@@ -647,7 +701,7 @@
           title: this.$t('导入主机'),
           bk_obj_id: 'host',
           template: `${window.API_HOST}importtemplate/host`,
-          fileTips: `${this.$t('导入文件大小提示')},${this.$t('主机导入文件提示')}`,
+          fileTips: this.$t('导入文件大小提示'),
           submit: (options) => {
             const params = {
               op: options.step
@@ -671,7 +725,7 @@
         setImportState({
           title: this.$t('导入编辑'),
           bk_obj_id: 'host',
-          fileTips: `${this.$t('导入文件大小提示')},${this.$t('主机导入文件提示')}`,
+          fileTips: this.$t('导入文件大小提示'),
           submit: (options) => {
             const params = {
               op: options.step

@@ -1,3 +1,4 @@
+// Package y3_9_202106291420 TODO
 /*
  * Tencent is pleased to support the open source community by making 蓝鲸 available.
  * Copyright (C) 2017-2018 THL A29 Limited, a Tencent company. All rights reserved.
@@ -20,12 +21,11 @@ import (
 )
 
 func init() {
-
 	upgrader.RegistUpgrader("y3.9.202106291420", upgrade)
 }
 
 func upgrade(ctx context.Context, db dal.RDB, conf *upgrader.Config) (err error) {
-	err = addIndexex(ctx, db, conf)
+	err = addIndexes(ctx, db, conf)
 	if err != nil {
 		blog.Errorf("[upgrade y3.9.202106291420] index error  %s", err.Error())
 		return err

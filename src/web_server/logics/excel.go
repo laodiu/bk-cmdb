@@ -14,7 +14,6 @@ package logics
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -143,7 +142,13 @@ func (lgc *Logics) BuildHostExcelFromData(ctx context.Context, objID string, fie
 	// len(objNames)+5=tip + biztopo + biz + set + moudle + customLen, the former indexes is used by these columns
 	addSystemField(fields, common.BKInnerObjIDHost, ccLang, len(objNames)+5)
 
-	productHostExcelHeader(ctx, fields, filter, xlsxFile, sheet, ccLang, objNames)
+	cloudAreaArr, _, err := lgc.getCloudArea(ctx, header)
+	if err != nil {
+		blog.Errorf("build host excel data failed, err: %v, rid: %s", err, rid)
+		return err
+	}
+
+	productHostExcelHeader(ctx, fields, filter, xlsxFile, sheet, ccLang, objNames, cloudAreaArr)
 
 	handleHostDataParam := &HandleHostDataParam{
 		HostData:          data,
@@ -212,8 +217,7 @@ func (lgc *Logics) buildHostExcelData(handleHostDataParam *HandleHostDataParam) 
 				return nil, handleHostDataParam.CcErr.CCError(common.CCErrCommReplyDataFormatError)
 			}
 
-			cloudArea := fmt.Sprintf("%v[%v]", cloudAreaArr[0][common.BKInstNameField],
-				cloudAreaArr[0][common.BKInstIDField])
+			cloudArea := cloudAreaArr[0][common.BKInstNameField]
 			rowMap.Set(common.BKCloudIDField, cloudArea)
 		}
 
@@ -267,7 +271,7 @@ func (lgc *Logics) buildHostExcelData(handleHostDataParam *HandleHostDataParam) 
 	return instIDArr, nil
 }
 
-// 获取模型关联关系
+// getObjectAssociation 获取模型关联关系
 func (lgc *Logics) getObjectAssociation(ctx context.Context, header http.Header, objID string, modelBizID int64) (
 	[]*metadata.Association, errors.CCErrorCoder) {
 	rid := util.ExtractRequestIDFromContext(ctx)
@@ -285,7 +289,7 @@ func (lgc *Logics) getObjectAssociation(ctx context.Context, header http.Header,
 			},
 		},
 	}
-	//确定关联标识的列表，定义excel选项下拉栏。此处需要查cc_ObjAsst表。
+	// 确定关联标识的列表，定义excel选项下拉栏。此处需要查cc_ObjAsst表。
 	resp, err := lgc.CoreAPI.ApiServer().SearchObjectAssociation(ctx, header, cond)
 	if err != nil {
 		blog.ErrorJSON("get object association list failed, err: %v, rid: %s", err, rid)
@@ -449,10 +453,6 @@ func (lgc *Logics) BuildExcelTemplate(ctx context.Context, objID, filename strin
 
 	rid := util.GetHTTPCCRequestID(header)
 	filterFields := getFilterFields(objID)
-	// host excel template doesn't need export field bk_cloud_id
-	if objID == common.BKInnerObjIDHost {
-		filterFields = append(filterFields, common.BKCloudIDField)
-	}
 
 	fields, err := lgc.GetObjFieldIDs(objID, filterFields, nil, header, modelBizID,
 		common.HostAddMethodExcelDefaultIndex)
@@ -482,7 +482,16 @@ func (lgc *Logics) BuildExcelTemplate(ctx context.Context, objID, filename strin
 	productExcelAssociationHeader(ctx, asstSheet, defLang, 0, asstList)
 
 	blog.V(5).Infof("BuildExcelTemplate fields count:%d, rid: %s", fields, rid)
-	productExcelHeader(ctx, fields, filterFields, file, sheet, defLang)
+	if objID == common.BKInnerObjIDHost {
+		cloudAreaName, _, err := lgc.getCloudArea(ctx, header)
+		if err != nil {
+			blog.Errorf("build %s excel template failed, err: %v,  rid: %s", objID, err, rid)
+			return err
+		}
+		productHostExcelHeader(ctx, fields, filterFields, file, sheet, defLang, nil, cloudAreaName)
+	} else {
+		productExcelHeader(ctx, fields, filterFields, file, sheet, defLang)
+	}
 	ProductExcelCommentSheet(ctx, file, defLang)
 
 	if err = file.Save(filename); nil != err {
@@ -493,6 +502,7 @@ func (lgc *Logics) BuildExcelTemplate(ctx context.Context, objID, filename strin
 	return nil
 }
 
+// AddDownExcelHttpHeader TODO
 func AddDownExcelHttpHeader(c *gin.Context, name string) {
 	if strings.HasSuffix(name, ".xls") {
 		c.Header("Content-Type", "application/vnd.ms-excel")
@@ -542,7 +552,7 @@ func GetExcelData(ctx context.Context, sheet *xlsx.Sheet, fields map[string]Prop
 
 }
 
-// GetExcelData excel数据，一个kv结构，key行数（excel中的行数），value内容
+// GetRawExcelData excel数据，一个kv结构，key行数（excel中的行数），value内容
 func GetRawExcelData(ctx context.Context, sheet *xlsx.Sheet, defFields common.KvMap, firstRow int,
 	defLang lang.DefaultCCLanguageIf, department map[int64]metadata.DepartmentItem) (map[int]map[string]interface{},
 	[]string, error) {
@@ -628,12 +638,13 @@ func GetAssociationExcelData(sheet *xlsx.Sheet, firstRow int, defLang lang.Defau
 	return asstInfoArr, errMsg
 }
 
+// StatisticsAssociation TODO
 func StatisticsAssociation(sheet *xlsx.Sheet, firstRow int) ([]string, map[string]metadata.ObjectAsstIDStatisticsInfo) {
 
 	rowCnt := len(sheet.Rows)
 	index := firstRow
 	asstInfoMap := make(map[string]metadata.ObjectAsstIDStatisticsInfo, 0)
-	//bk_obj_asst_id
+	// bk_obj_asst_id
 	asstNameArr := make([]string, 0)
 	for ; index < rowCnt; index++ {
 		var asstInfo metadata.ObjectAsstIDStatisticsInfo

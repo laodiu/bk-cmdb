@@ -36,7 +36,7 @@ func (lgc *Logics) GetHostData(appID int64, hostIDArr []int64, hostFields []stri
 	exportCond metadata.HostCommonSearch,
 	header http.Header, defLang lang.DefaultCCLanguageIf) ([]mapstr.MapStr, error) {
 	rid := util.GetHTTPCCRequestID(header)
-	//defErr := lgc.CCErr.CreateDefaultCCErrorIf(util.GetLanguage(header))
+	// defErr := lgc.CCErr.CreateDefaultCCErrorIf(util.GetLanguage(header))
 
 	if len(hostIDArr) == 0 && len(exportCond.Condition) == 0 {
 		return nil, errors.New(defLang.Language("both_hostid_exportcond_empty"))
@@ -131,8 +131,8 @@ func (lgc *Logics) GetHostData(appID int64, hostIDArr []int64, hostFields []stri
 // return inst array data, errmsg collection, error
 func (lgc *Logics) GetImportHosts(f *xlsx.File, header http.Header, defLang lang.DefaultCCLanguageIf,
 	modelBizID int64) (map[int]map[string]interface{}, []string, error) {
-	ctx := util.NewContextFromHTTPHeader(header)
 
+	ctx := util.NewContextFromHTTPHeader(header)
 	if len(f.Sheets) == 0 {
 		return nil, nil, errors.New(defLang.Language("web_excel_content_empty"))
 	}
@@ -155,8 +155,37 @@ func (lgc *Logics) GetImportHosts(f *xlsx.File, header http.Header, defLang lang
 		return nil, nil, err
 	}
 
-	return GetExcelData(ctx, sheet, fields, common.KvMap{"import_from": common.HostAddMethodExcel}, true, 0, defLang,
-		departmentMap)
+	_, cloudMap, err := lgc.getCloudArea(ctx, header)
+	if err != nil {
+		blog.Errorf("get cloud area id name map failed, err: %v, rid: %s", err, util.GetHTTPCCRequestID(header))
+		return nil, nil, err
+	}
+
+	hostsInfo, errMsg, err := GetExcelData(ctx, sheet, fields, common.KvMap{"import_from": common.HostAddMethodExcel},
+		true, 0, defLang, departmentMap)
+	if err != nil {
+		blog.Errorf("get host excel data failed, err: %v, rid: %s", err, util.GetHTTPCCRequestID(header))
+		return nil, errMsg, err
+	}
+
+	for index := range hostsInfo {
+		cloudStr := common.DefaultCloudName
+		if _, ok := hostsInfo[index][common.BKCloudIDField]; ok {
+			cloudStr = util.GetStrByInterface(hostsInfo[index][common.BKCloudIDField])
+		}
+
+		if _, ok := cloudMap[cloudStr]; !ok {
+			blog.Errorf("check cloud area data failed, cloud area name %s of line %d doesn't exist, rid: %s", cloudStr,
+				index, util.GetHTTPCCRequestID(header))
+			errMsg = append(errMsg, defLang.Languagef("import_host_cloudID_not_exist", index,
+				hostsInfo[index][common.BKHostInnerIPField], cloudStr))
+			return nil, errMsg, nil
+		}
+
+		hostsInfo[index][common.BKCloudIDField] = cloudMap[cloudStr]
+	}
+
+	return hostsInfo, errMsg, nil
 }
 
 // ImportHosts import host info
@@ -189,6 +218,86 @@ func (lgc *Logics) ImportHosts(ctx context.Context, f *xlsx.File, header http.He
 
 	}
 	return lgc.importHosts(ctx, f, header, defLang, modelBizID, modelBizID, asstObjectUniqueIDMap, objectUniqueID)
+}
+
+func (lgc *Logics) handleAsstInfoMap(ctx context.Context, header http.Header, objID string,
+	asstInfoMap map[int]metadata.ExcelAssociation, asstObjectUniqueIDMap map[string]int64,
+	rid string) (map[int]metadata.ExcelAssociation, error){
+
+	var associationFlag []string
+	for _, info := range asstInfoMap {
+		associationFlag = append(associationFlag, info.ObjectAsstID)
+	}
+	resp, err := lgc.CoreAPI.ApiServer().FindAssociationByObjectAssociationID(ctx, header, objID,
+		metadata.FindAssociationByObjectAssociationIDRequest{ObjAsstIDArr: associationFlag})
+	if err != nil {
+		blog.Errorf("find association by object asstID failed, err: %v, rid: %s", err, rid)
+		return nil, err
+	}
+	tempAsstInfo := make(map[string]int64, 0)
+	for _, asstInfo := range resp.Data {
+		_, asstObjID := asstObjectUniqueIDMap[asstInfo.AsstObjID]
+		_, objID := asstObjectUniqueIDMap[asstInfo.ObjectID]
+		if asstObjID || objID {
+			continue
+		}
+		tempAsstInfo[asstInfo.AssociationName] = asstInfo.ID
+	}
+
+	tempAsstMap := asstInfoMap
+	for index, asst := range asstInfoMap {
+		if _, ok := tempAsstInfo[asst.ObjectAsstID]; ok {
+			delete(tempAsstMap, index)
+		}
+	}
+
+	return tempAsstMap, nil
+}
+
+func (lgc *Logics) handleExcelAssociation(ctx context.Context, h http.Header, f *xlsx.File, objID string, rid string,
+	asstObjectUniqueIDMap map[string]int64, objectUniqueID int64, defLang lang.DefaultCCLanguageIf,
+	resp *metadata.ResponseDataMapStr) *metadata.ResponseDataMapStr{
+	// if sheet name is 'association', the sheet is association data to be import
+	for _, sheet := range f.Sheets {
+		if sheet.Name != "association" {
+			continue
+		}
+
+		asstMap, assoErrMsg := GetAssociationExcelData(sheet, common.HostAddMethodExcelAssociationIndexOffset, defLang)
+		asstMap, err := lgc.handleAsstInfoMap(ctx, h, objID, asstMap, asstObjectUniqueIDMap, rid)
+		if err != nil {
+			blog.Errorf("handle asst info map failed, err: %v, rid: %s", err, rid)
+			return resp
+		}
+		if len(asstMap) == 0 {
+			blog.Errorf("not found association data need add, rid: %s", rid)
+			return resp
+		}
+
+		asstInfoMapInput := &metadata.RequestImportAssociation{
+			AssociationInfoMap:    asstMap,
+			AsstObjectUniqueIDMap: asstObjectUniqueIDMap,
+			ObjectUniqueID:        objectUniqueID,
+		}
+		asstResult, asstResultErr := lgc.CoreAPI.ApiServer().ImportAssociation(ctx, h, objID, asstInfoMapInput)
+		if asstResultErr != nil {
+			blog.Errorf("import host association failed, err: %v, rid: %s", asstResultErr, rid)
+			resp.Code = common.CCErrCommHTTPDoRequestFailed
+			resp.ErrMsg = lgc.CCErr.CreateDefaultCCErrorIf(util.GetLanguage(h)).Errorf(common.
+				CCErrCommHTTPDoRequestFailed).Error()
+			return resp
+		}
+
+		assoErrMsg = append(assoErrMsg, asstResult.Data.ErrMsgMap...)
+		if resp.Result && !asstResult.Result {
+			resp.BaseResp = asstResult.BaseResp
+		}
+
+		resp.Data.Set("asst_error", assoErrMsg)
+		return resp
+	}
+
+	return resp
 }
 
 func (lgc *Logics) importHosts(ctx context.Context, f *xlsx.File, header http.Header, defLang lang.DefaultCCLanguageIf,
@@ -249,41 +358,11 @@ func (lgc *Logics) importHosts(ctx context.Context, f *xlsx.File, header http.He
 		return resp
 	}
 
-	// if sheet name is 'association', the sheet is association data to be import
-	for _, sheet := range f.Sheets {
-		if sheet.Name != "association" {
-			continue
-		}
-
-		asstMap, assoErrMsg := GetAssociationExcelData(sheet, common.HostAddMethodExcelAssociationIndexOffset, defLang)
-
-		if len(asstMap) > 0 {
-			asstInfoMapInput := &metadata.RequestImportAssociation{
-				AssociationInfoMap:    asstMap,
-				AsstObjectUniqueIDMap: asstObjectUniqueIDMap,
-				ObjectUniqueID:        objectUniqueID,
-			}
-			asstResult, asstResultErr := lgc.CoreAPI.ApiServer().ImportAssociation(ctx, header, common.BKInnerObjIDHost,
-				asstInfoMapInput)
-			if asstResultErr != nil {
-				blog.Errorf("import host association failed, err: %v, rid: %s", asstResultErr, rid)
-				resp.Code = common.CCErrCommHTTPDoRequestFailed
-				resp.ErrMsg = defErr.Errorf(common.CCErrCommHTTPDoRequestFailed).Error()
-				return resp
-			}
-
-			assoErrMsg = append(assoErrMsg, asstResult.Data.ErrMsgMap...)
-			if resp.Result && !asstResult.Result {
-				resp.BaseResp = asstResult.BaseResp
-			}
-		}
-
-		resp.Data.Set("asst_error", assoErrMsg)
-	}
-
-	return resp
+	return lgc.handleExcelAssociation(ctx, header, f, common.BKInnerObjIDHost, rid, asstObjectUniqueIDMap,
+		objectUniqueID, defLang, resp)
 }
 
+// importStatisticsAssociation TODO
 // Statistics
 func (lgc *Logics) importStatisticsAssociation(ctx context.Context, header http.Header, objID string,
 	sheet *xlsx.Sheet) (map[string]metadata.ObjectAsstIDStatisticsInfo, ccErrrors.CCErrorCoder) {
@@ -339,8 +418,7 @@ func (lgc *Logics) importStatisticsAssociation(ctx context.Context, header http.
 
 // UpdateHosts update excel import hosts
 func (lgc *Logics) UpdateHosts(ctx context.Context, f *xlsx.File, header http.Header, defLang lang.DefaultCCLanguageIf,
-	modelBizID, opType int64, asstObjectUniqueIDMap map[string]int64,
-	objectUniqueID int64) *metadata.ResponseDataMapStr {
+	modelBizID, opType int64, asstObjectUniqueIDMap map[string]int64, objectUniqueID int64) *metadata.ResponseDataMapStr {
 
 	rid := util.ExtractRequestIDFromContext(ctx)
 	defErr := lgc.CCErr.CreateDefaultCCErrorIf(util.GetLanguage(header))
@@ -405,32 +483,8 @@ func (lgc *Logics) UpdateHosts(ctx context.Context, f *xlsx.File, header http.He
 		return result
 	}
 
-	asstInfoMap, _ := GetAssociationExcelData(f.Sheet["association"], common.HostAddMethodExcelAssociationIndexOffset,
-		defLang)
-	if len(asstInfoMap) == 0 {
-		return result
-	}
-
-	asstInfoMapInput := &metadata.RequestImportAssociation{
-		AssociationInfoMap:    asstInfoMap,
-		AsstObjectUniqueIDMap: asstObjectUniqueIDMap,
-		ObjectUniqueID:        objectUniqueID,
-	}
-	asstResult, asstResultErr := lgc.CoreAPI.ApiServer().ImportAssociation(ctx, header, common.BKInnerObjIDHost,
-		asstInfoMapInput)
-	if asstResultErr != nil {
-		blog.Errorf("ImportHosts logics http request import association error:%s, rid:%s", asstResultErr.Error(),
-			util.GetHTTPCCRequestID(header))
-		return returnByErrCode(defErr, common.CCErrCommHTTPDoRequestFailed, nil, "")
-	}
-
-	result.Data.Set("asst_error", asstResult.Data.ErrMsgMap)
-
-	if result.Result && !asstResult.Result {
-		result.BaseResp = asstResult.BaseResp
-	}
-
-	return result
+	return lgc.handleExcelAssociation(ctx, header, f, common.BKInnerObjIDHost, rid, asstObjectUniqueIDMap,
+		objectUniqueID, defLang, result)
 }
 
 func returnByErrCode(defErr ccErrrors.DefaultCCErrorIf, errCode int, data mapstr.MapStr,
@@ -459,7 +513,9 @@ func returnByErrCode(defErr ccErrrors.DefaultCCErrorIf, errCode int, data mapstr
 }
 
 // CheckHostsAdded check the hosts to be added
-func (lgc *Logics) CheckHostsAdded(ctx context.Context, header http.Header, hostInfos map[int]map[string]interface{}) (errMsg []string, err error) {
+func (lgc *Logics) CheckHostsAdded(ctx context.Context, header http.Header, hostInfos map[int]map[string]interface{}) (
+	errMsg []string, err error) {
+
 	rid := util.ExtractRequestIDFromContext(ctx)
 	ccLang := lgc.Engine.Language.CreateDefaultCCLanguageIf(util.GetLanguage(header))
 
@@ -476,7 +532,7 @@ func (lgc *Logics) CheckHostsAdded(ctx context.Context, header http.Header, host
 		}
 
 		innerIP, ok := host[common.BKHostInnerIPField].(string)
-		if ok == false || "" == innerIP {
+		if !ok || innerIP == "" {
 			errMsg = append(errMsg, ccLang.Languagef("host_import_innerip_empty", index))
 			continue
 		}
@@ -486,10 +542,17 @@ func (lgc *Logics) CheckHostsAdded(ctx context.Context, header http.Header, host
 			continue
 		}
 
+		cloud, ok := host[common.BKCloudIDField]
+		if !ok {
+			errMsg = append(errMsg, ccLang.Languagef("import_host_not_provide_cloudID", index))
+			continue
+		}
+
 		// check if the host exist in db
-		key := generateHostCloudKey(innerIP, common.BKDefaultDirSubArea)
+		key := generateHostCloudKey(innerIP, cloud)
 		if _, exist := existentHosts[key]; exist {
-			errMsg = append(errMsg, ccLang.Languagef("import_host_exist_error", index, common.BKDefaultDirSubArea, innerIP))
+			errMsg = append(errMsg, ccLang.Languagef("import_host_exist_error", index, common.BKDefaultDirSubArea,
+				innerIP))
 			continue
 		}
 	}
@@ -775,4 +838,62 @@ func (lgc *Logics) getExistHostsByHostIDs(ctx context.Context, header http.Heade
 	}
 
 	return hostMap, nil
+}
+
+// getCloudArea search total cloud area id and name
+// return an array of cloud name and a name-id map
+func (lgc *Logics) getCloudArea(ctx context.Context, header http.Header) ([]string, map[string]int64, error) {
+
+	rid := util.GetHTTPCCRequestID(header)
+	defErr := lgc.CCErr.CreateDefaultCCErrorIf(util.GetLanguage(header))
+
+	cloudArea := make([]mapstr.MapStr, 0)
+	start := 0
+	for {
+		input := metadata.CloudAreaSearchParam{
+			SearchCloudOption: metadata.SearchCloudOption{
+				Fields: []string{common.BKCloudIDField, common.BKCloudNameField},
+				Page:   metadata.BasePage{Start: start, Limit: common.BKMaxPageSize},
+			},
+			SyncTaskIDs: false,
+		}
+		rsp, err := lgc.Engine.CoreAPI.ApiServer().SearchCloudArea(ctx, header, input)
+		if err != nil {
+			blog.Errorf("search cloud area failed, err: %v, rid: %s", err, rid)
+			return nil, nil, err
+		}
+
+		cloudArea = append(cloudArea, rsp.Info...)
+		if len(rsp.Info) < common.BKMaxPageSize {
+			break
+		}
+
+		start += common.BKMaxPageSize
+	}
+
+	if len(cloudArea) == 0 {
+		blog.Errorf("search cloud area failed, return empty, rid: %s", rid)
+		return nil, nil, defErr.CCError(common.CCErrTopoCloudNotFound)
+	}
+
+	cloudAreaArr := make([]string, 0)
+	cloudAreaMap := make(map[string]int64)
+	for _, item := range cloudArea {
+		areaName, err := item.String(common.BKCloudNameField)
+		if err != nil {
+			blog.Errorf("get type of string cloud name failed, err: %v, rid: %s", err, rid)
+			return nil, nil, err
+		}
+		cloudAreaArr = append(cloudAreaArr, areaName)
+
+		areaID, err := item.Int64(common.BKCloudIDField)
+		if err != nil {
+			blog.Errorf("get type of int64 cloud id failed, err: %v, rid: %s", err, rid)
+			return nil, nil, err
+		}
+		// cloud area name is unique
+		cloudAreaMap[areaName] = areaID
+	}
+
+	return cloudAreaArr, cloudAreaMap, nil
 }

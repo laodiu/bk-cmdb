@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div :class="['topo-wrapper', { hover: isTopoHover }]">
     <div class="toolbar">
@@ -66,7 +78,11 @@
           <span class="group-name" :title="group.bk_classification_name">{{group['bk_classification_name']}}</span>
           <span class="model-count">{{group['bk_objects'].length}}</span>
           <i
-            class="bk-cc-icon icon-cc-hide"
+            :class="[
+              'bk-cc-icon',
+              'icon-eye',
+              topoNav.hideGroupIds.includes(group['bk_classification_id']) ? 'icon-cc-close-eye' : 'icon-cc-open-eye'
+            ]"
             @click.stop="handleToggleGroup(group)"
           >
           </i>
@@ -95,7 +111,11 @@
                 <p class="name" :title="model['bk_obj_name']">{{model['bk_obj_name']}}</p>
               </div>
               <i
-                class="bk-cc-icon icon-cc-hide"
+                :class="[
+                  'bk-cc-icon',
+                  'icon-eye',
+                  topoNav.hideNodeIds.includes(model['bk_obj_id']) ? 'icon-cc-close-eye' : 'icon-cc-open-eye'
+                ]"
                 @click.stop="handleToggleNode(model, group)"
               >
               </i>
@@ -164,6 +184,7 @@
   import memoize from 'lodash.memoize'
   import debounce from 'lodash.debounce'
   import throttle from 'lodash.throttle'
+  import { UNCATEGORIZED_GROUP_ID } from '@/dictionary/model-constants.js'
 
   // cytoscape实例，不能放到data中管理
   let cy = null
@@ -239,10 +260,12 @@
         })
       },
       localClassifications() {
-        return this.$tools.clone(this.classifications).map((classify) => {
-          classify.bk_objects = classify.bk_objects.filter(model => !model.bk_ishidden && !model.bk_ispaused)
-          return classify
-        })
+        return this.$tools.clone(this.classifications)
+          .filter(classify => !classify?.bk_ishidden)
+          .map((classify) => {
+            classify.bk_objects = classify.bk_objects.filter(model => !model.bk_ishidden && !model.bk_ispaused)
+            return classify
+          })
       },
       hideModels() {
         return this.usercustom[this.hideModelConfigKey] || {}
@@ -1178,7 +1201,8 @@
           await this.createMainlineObject({
             params: {
               bk_asst_obj_id: this.addBusinessLevel.parent.bk_obj_id,
-              bk_classification_id: 'bk_biz_topo',
+              // 新建的主线模型放到未分类分组，因其它分组都是可以被删除的
+              bk_classification_id: UNCATEGORIZED_GROUP_ID,
               bk_obj_icon: data.bk_obj_icon,
               bk_obj_id: data.bk_obj_id,
               bk_obj_name: data.bk_obj_name,
@@ -1198,6 +1222,9 @@
 
           // 更新拓扑图
           this.updateNetwork()
+
+          // 更新主线模型
+          this.getMainLineModel()
 
           this.cancelCreateBusinessLevel()
         } catch (e) {
@@ -1342,7 +1369,7 @@
             &:hover {
                 background: #e1ecff;
 
-                .icon-cc-hide {
+                .icon-eye {
                     display: inline-block;
                 }
             }
@@ -1365,7 +1392,7 @@
                 }
             }
             &.invisible {
-                .icon-cc-hide {
+                .icon-eye {
                     display: inline-block;
                 }
                 .group-name {
@@ -1403,7 +1430,7 @@
                 color: #979ba5;
                 margin: 0 -4px;
             }
-            .icon-cc-hide {
+            .icon-eye {
                 display: none;
                 position: absolute;
                 right: 16px;
@@ -1426,7 +1453,7 @@
             &:hover {
                 background: #ebf4ff;
 
-                .icon-cc-hide {
+                .icon-eye {
                     display: inline-block;
                 }
             }
@@ -1435,7 +1462,7 @@
                 opacity: .6;
             }
             &.invisible {
-                .icon-cc-hide {
+                .icon-eye {
                     display: inline-block;
                 }
                 .info,
@@ -1475,7 +1502,7 @@
                     color: $cmdbBorderColor;
                 }
             }
-            .icon-cc-hide {
+            .icon-eye {
                 display: none;
                 position: absolute;
                 right: 16px;

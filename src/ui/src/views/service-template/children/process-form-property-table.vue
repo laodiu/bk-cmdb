@@ -1,42 +1,53 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <cmdb-form-table class="cmdb-form-process-table"
     v-bind="$attrs"
     v-model="localValue"
     :options="options">
-    <div class="process-table-content"
-      v-for="column in options"
-      slot-scope="rowProps"
-      :slot="column.bk_property_id"
-      :key="`row-${rowProps.index}-${column.bk_property_id}`"
-      :class="{ 'is-lock': isLocked(rowProps) }">
-      <component class="content-value"
-        size="small"
-        font-size="small"
-        v-bind="getEvents(column)"
-        v-validate="getRules(rowProps, column)"
-        :data-vv-name="column.bk_property_id"
-        :data-vv-as="column.bk_property_name"
-        :data-vv-scope="column.bk_property_group || 'bind_info'"
-        :is="getComponentType(column)"
-        :options="column.option || []"
-        :placeholder="getPlaceholder(column)"
-        :value="localValue[rowProps.index][column.bk_property_id]"
-        :auto-select="false"
-        @input="handleColumnValueChange(rowProps, ...arguments)">
-      </component>
-      <span class="property-lock-state"
-        v-bk-tooltips="{
-          placement: 'top',
-          interactive: false,
-          content: isLocked(rowProps) ? $t('取消锁定') : $t('进程模板锁定提示语'),
-          delay: [100, 0]
-        }"
-        tabindex="-1"
-        @click="setLockState(rowProps)">
-        <i class="icon-cc-lock-fill" v-if="isLocked(rowProps)"></i>
-        <i class="icon-cc-lock-line" v-else></i>
-      </span>
-    </div>
+    <template v-for="column in options" #[column.bk_property_id]="rowProps">
+      <div class="process-table-content"
+        :key="`row-${rowProps.index}-${column.bk_property_id}`"
+        :class="{ 'is-lock': isLocked(rowProps) }">
+        <component class="content-value"
+          size="small"
+          font-size="small"
+          v-bind="getEvents(column)"
+          v-validate="getRules(rowProps, column)"
+          :data-vv-name="column.bk_property_id"
+          :data-vv-as="column.bk_property_name"
+          :data-vv-scope="column.bk_property_group || 'bind_info'"
+          :is="getComponentType(column)"
+          :options="column.option || []"
+          :placeholder="getPlaceholder(column)"
+          :value="localValue[rowProps.index][column.bk_property_id]"
+          :auto-select="false"
+          @input="handleColumnValueChange(rowProps, ...arguments)">
+        </component>
+        <span class="property-lock-state"
+          v-bk-tooltips="{
+            placement: 'top',
+            interactive: false,
+            content: $t('进程模板加解锁提示语'),
+            delay: [100, 0]
+          }"
+          tabindex="-1"
+          @click="setLockState(rowProps)">
+          <i class="icon-cc-lock-fill" v-if="isLocked(rowProps)"></i>
+          <i class="icon-cc-unlock-fill" v-else></i>
+        </span>
+      </div>
+    </template>
   </cmdb-form-table>
 </template>
 
@@ -55,6 +66,9 @@
         type: Array,
         required: true
       }
+    },
+    inject: {
+      type: { default: '' } // from ./process-form
     },
     computed: {
       localValue: {
@@ -138,6 +152,7 @@
         rules.required = true
         // IP字段在模板上被构造为枚举，无法通过ip的正则，此处忽略IP正则
         if (property.bk_property_id === 'ip') {
+          rules.required = false
           delete rules.remoteString
         }
         return rules
@@ -156,13 +171,17 @@
           const templateRowValue = {}
           // 获取新value中每行对应的老数据的index，用于正确的获取checkbox勾选状态
           const index = isAddOrDelete ? this.localValue.indexOf(row) : rowIndex
+
+          // 创建模式并且是新添加的行，使其默认锁定
+          const defaultLocked = this.type === 'create' && rowIndex === values.length - 1
+
           Object.keys(row).forEach((key) => {
             if (['process_id', 'row_id'].includes(key)) {
               templateRowValue[key] = row[key]
             } else {
               templateRowValue[key] = {
                 value: row[key],
-                as_default_value: !!(this.lockStates[index] || {})[key]
+                as_default_value: !!(this.lockStates[index] || {})[key] || defaultLocked
               }
             }
           })

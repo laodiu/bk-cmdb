@@ -21,6 +21,7 @@ import (
 	"configcenter/src/scene_server/auth_server/sdk/types"
 )
 
+// GenIamResource TODO
 func GenIamResource(act ActionID, rscType TypeID, a *meta.ResourceAttribute) ([]types.Resource, error) {
 	// skip actions do not need to relate to resources
 	if act == Skip {
@@ -92,6 +93,10 @@ func GenIamResource(act ActionID, rscType TypeID, a *meta.ResourceAttribute) ([]
 		return make([]types.Resource, 0), nil
 	case meta.ProcessServiceCategory:
 		return genProcessServiceCategoryResource(act, rscType, a)
+	case meta.KubeCluster, meta.KubeNode, meta.KubeNamespace, meta.KubeWorkload, meta.KubeDeployment,
+		meta.KubeStatefulSet, meta.KubeDaemonSet, meta.KubeGameStatefulSet, meta.KubeGameDeployment, meta.KubeCronJob,
+		meta.KubeJob, meta.KubePodWorkload, meta.KubePod, meta.KubeContainer:
+		return make([]types.Resource, 0), nil
 	default:
 		if IsCMDBSysInstance(a.Basic.Type) {
 			return genSysInstanceResource(act, rscType, a)
@@ -101,6 +106,7 @@ func GenIamResource(act ActionID, rscType TypeID, a *meta.ResourceAttribute) ([]
 	return nil, fmt.Errorf("gen id failed: unsupported resource type: %s", a.Type)
 }
 
+// genBusinessResource TODO
 // generate business related resource id.
 func genBusinessResource(act ActionID, typ TypeID, attribute *meta.ResourceAttribute) ([]types.Resource, error) {
 	r := types.Resource{
@@ -122,6 +128,7 @@ func genBusinessResource(act ActionID, typ TypeID, attribute *meta.ResourceAttri
 	return []types.Resource{r}, nil
 }
 
+// genBizSetResource TODO
 // generate biz set related resource id.
 func genBizSetResource(act ActionID, typ TypeID, attribute *meta.ResourceAttribute) ([]types.Resource, error) {
 	r := types.Resource{
@@ -228,6 +235,17 @@ func genResourceWatch(act ActionID, typ TypeID, att *meta.ResourceAttribute) ([]
 		r.Type = types.ResourceType(InstAsstEvent)
 		if att.InstanceID > 0 {
 			r.ID = strconv.FormatInt(att.InstanceID, 10)
+		}
+		return []types.Resource{r}, nil
+
+	case WatchKubeWorkloadEvent:
+		r := types.Resource{
+			System: SystemIDCMDB,
+		}
+
+		r.Type = types.ResourceType(KubeWorkloadEvent)
+		if att.InstanceIDEx != "" {
+			r.ID = att.InstanceIDEx
 		}
 		return []types.Resource{r}, nil
 

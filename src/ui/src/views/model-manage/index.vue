@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div
     class="model-management"
@@ -125,11 +137,13 @@
       >
         <li
           class="group-item clearfix"
+          ref="classification"
           v-for="(classification, classIndex) in currentClassifications"
           :key="classIndex"
         >
           <div class="group-header clearfix">
             <collapse-group-title
+              :is-new-classify="classification.isNewClassify"
               :dropdown-menu="!isModelSelectable"
               :collapse=" classificationsCollapseState[classification.id]"
               :title="`${classification.bk_classification_name} ( ${ classification.bk_objects.length} )`"
@@ -229,6 +243,20 @@
                 </div>
               </div>
             </draggable>
+          </bk-transition>
+          <bk-transition name="collapse" class="group-empty-model"
+            v-if="classification.bk_objects.length === 0"
+            v-show="!classificationsCollapseState[classification.id]">
+            <div>
+              <i class="bk-icon icon-info-circle"></i>
+              <i18n path="分组暂无模型提示">
+                <template #btn>
+                  <bk-button :text="true" title="primary" @click="showModelDialog(classification.bk_classification_id)">
+                    {{$t('立即添加')}}
+                  </bk-button>
+                </template>
+              </i18n>
+            </div>
           </bk-transition>
         </li>
       </ul>
@@ -344,7 +372,7 @@
       class="bk-dialog-no-padding"
       :width="400"
       :show-footer="false"
-      :mask-close="false"
+      :mask-close="true"
       v-model="modelCreatedDialogVisible"
     >
       <div class="success-content">
@@ -475,14 +503,16 @@
       ...mapGetters('objectModelClassify', ['classifications']),
       allClassifications() {
         const allClassifications = []
-        this.classifications.forEach((classification) => {
-          allClassifications.push({
-            ...classification,
-            bk_objects: classification.bk_objects
-              .filter(model => !model.bk_ishidden)
-              .sort((a, b) => a.bk_ispaused - b.bk_ispaused),
+        this.classifications
+          .filter(classification => !classification?.bk_ishidden)
+          .forEach((classification) => {
+            allClassifications.push({
+              ...classification,
+              bk_objects: classification.bk_objects
+                .filter(model => !model.bk_ishidden)
+                .sort((a, b) => a.bk_ispaused - b.bk_ispaused),
+            })
           })
-        })
         return allClassifications
       },
       enableClassifications() {
@@ -498,7 +528,7 @@
       disabledClassifications() {
         const disabledClassifications = []
 
-        this.classifications.forEach((classification) => {
+        this.allClassifications.forEach((classification) => {
           disabledClassifications.push({
             ...classification,
             bk_objects: classification.bk_objects.filter(model => model.bk_ispaused),
@@ -691,15 +721,13 @@
       handleModelDragMove(event) {
         const draggedModel = event.draggedContext.element
         const targetGroupModels = event.relatedContext.list
-
-        const isTargetGroupEmpty = targetGroupModels.length === 0
-
-        if (isTargetGroupEmpty) return isTargetGroupEmpty
-
-        const isOtherGroup = !targetGroupModels
+        const { willInsertAfter } = event
+        const isSameGroup = targetGroupModels
           .some(model => model.bk_classification_id === draggedModel?.bk_classification_id)
-
-        return isOtherGroup || isTargetGroupEmpty
+        if (isSameGroup && willInsertAfter) {
+          return true
+        }
+        return !isSameGroup
       },
       handleModelDragAdd(event) {
         const { modelId } = event.item.dataset
@@ -957,17 +985,19 @@
                 requestId: 'updateClassification'
               }
             })
-            this.updateClassify({ ...params, ...{ id: this.groupDialog.data.id } })
+            this.updateClassify({ ...params, ...{ id: this.groupDialog.data.id, isNewClassify: false } })
           } else {
             const res = await this.createClassification({
               params,
               config: { requestId: 'createClassification' }
             })
-            this.updateClassify({ ...params, ...{ id: res.id } })
+            this.updateClassify({ ...params, ...{ id: res.id, isNewClassify: true } })
             this.$success(this.$t('新建成功'))
           }
           this.hideGroupDialog()
           this.modelSearchKey = ''
+          const classificationDomList = this.$refs.classification.at(-2)
+          classificationDomList.scrollIntoView()
         } catch (error) {
           console.log(error)
         }

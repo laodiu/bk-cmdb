@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package logics TODO
 package logics
 
 import (
@@ -17,6 +18,7 @@ import (
 	"configcenter/src/apimachinery"
 	"configcenter/src/common/language"
 	"configcenter/src/scene_server/topo_server/logics/inst"
+	"configcenter/src/scene_server/topo_server/logics/kube"
 	"configcenter/src/scene_server/topo_server/logics/model"
 	"configcenter/src/scene_server/topo_server/logics/operation"
 	"configcenter/src/scene_server/topo_server/logics/settemplate"
@@ -39,6 +41,7 @@ type Logics interface {
 	BusinessOperation() inst.BusinessOperationInterface
 	BusinessSetOperation() inst.BusinessSetOperationInterface
 	SetTemplateOperation() settemplate.SetTemplate
+	KubeOperation() kube.KubeOperationInterface
 }
 
 type logics struct {
@@ -57,6 +60,7 @@ type logics struct {
 	business          inst.BusinessOperationInterface
 	businessSet       inst.BusinessSetOperationInterface
 	setTemplate       settemplate.SetTemplate
+	kube              kube.KubeOperationInterface
 }
 
 // New create a logics manager
@@ -76,19 +80,19 @@ func New(client apimachinery.ClientSetInterface, authManager *extensions.AuthMan
 	groupOperation := model.NewGroupOperation(client)
 	businessOperation := inst.NewBusinessOperation(client, authManager)
 	businessSetOperation := inst.NewBusinessSetOperation(client, authManager)
-
+	kubeOperation := kube.NewClusterOperation(client, authManager)
 	setTemplate := settemplate.NewSetTemplate(client)
 
 	instOperation.SetProxy(instAssociationOperation)
 	instAssociationOperation.SetProxy(instOperation)
 	associationOperation.SetProxy(objectOperation, instOperation, instAssociationOperation)
+	importAssociationOperation.SetProxy(instAssociationOperation)
 	groupOperation.SetProxy(objectOperation)
 	setOperation.SetProxy(instOperation, moduleOperation)
 	moduleOperation.SetProxy(instOperation)
 	attributeOperation.SetProxy(groupOperation, objectOperation)
 	businessOperation.SetProxy(instOperation, moduleOperation, setOperation)
 	businessSetOperation.SetProxy(instOperation)
-
 	return &logics{
 		classification:    classificationOperation,
 		set:               setOperation,
@@ -105,6 +109,7 @@ func New(client apimachinery.ClientSetInterface, authManager *extensions.AuthMan
 		business:          businessOperation,
 		businessSet:       businessSetOperation,
 		setTemplate:       setTemplate,
+		kube:              kubeOperation,
 	}
 }
 
@@ -173,9 +178,14 @@ func (l *logics) BusinessOperation() inst.BusinessOperationInterface {
 	return l.business
 }
 
-// BusinessOperation return a inst provide BusinessOperation
+// BusinessSetOperation return a inst provide BusinessOperation
 func (l *logics) BusinessSetOperation() inst.BusinessSetOperationInterface {
 	return l.businessSet
+}
+
+// kubeOperation return a inst provide kubeOperation
+func (l *logics) KubeOperation() kube.KubeOperationInterface {
+	return l.kube
 }
 
 // SetTemplateOperation set template operation

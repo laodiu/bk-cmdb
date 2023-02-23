@@ -13,6 +13,8 @@
 package extensions
 
 import (
+	"strconv"
+
 	"configcenter/src/ac"
 	"configcenter/src/ac/iam"
 	"configcenter/src/apimachinery"
@@ -21,6 +23,7 @@ import (
 	"configcenter/src/common/util"
 )
 
+// AuthManager TODO
 type AuthManager struct {
 	clientSet  apimachinery.ClientSetInterface
 	Authorizer ac.AuthorizeInterface
@@ -32,6 +35,7 @@ type AuthManager struct {
 	SkipReadAuthorization        bool
 }
 
+// NewAuthManager TODO
 func NewAuthManager(clientSet apimachinery.ClientSetInterface, iamCli *iam.IAM) *AuthManager {
 	return &AuthManager{
 		clientSet:                    clientSet,
@@ -44,6 +48,7 @@ func NewAuthManager(clientSet apimachinery.ClientSetInterface, iamCli *iam.IAM) 
 	}
 }
 
+// InstanceSimplify TODO
 type InstanceSimplify struct {
 	InstanceID int64  `field:"bk_inst_id" json:"bk_inst_id" bson:"bk_inst_id"`
 	Name       string `field:"bk_inst_name" json:"bk_inst_name" bson:"bk_inst_name"`
@@ -64,6 +69,7 @@ func (is *InstanceSimplify) Parse(data mapstr.MapStr) (*InstanceSimplify, error)
 	return is, err
 }
 
+// ParseBizID TODO
 func ParseBizID(data mapstr.MapStr) (int64, error) {
 	/*
 		data:
@@ -88,6 +94,7 @@ func ParseBizID(data mapstr.MapStr) (int64, error) {
 	return ParseBizIDFromMetadata(metaValue)
 }
 
+// ParseBizIDFromMetadata TODO
 func ParseBizIDFromMetadata(metaValue map[string]interface{}) (int64, error) {
 	labelInterface, exist := metaValue["label"]
 	if !exist {
@@ -105,9 +112,15 @@ func ParseBizIDFromMetadata(metaValue map[string]interface{}) (int64, error) {
 		return 0, nil
 	}
 
+	// if metadata biz id is of string type, convert it to int64, otherwise, convert the integer type of it to int64
+	if bizIDStr, ok := bizID.(string); ok {
+		return strconv.ParseInt(bizIDStr, 10, 64)
+	}
+
 	return util.GetInt64ByInterface(bizID)
 }
 
+// BusinessSimplify TODO
 type BusinessSimplify struct {
 	BKAppIDField   int64  `field:"bk_biz_id" json:"bk_biz_id" bson:"bk_biz_id"`
 	BKAppNameField string `field:"bk_biz_name" json:"bk_biz_name" bson:"bk_biz_name"`
@@ -132,6 +145,13 @@ func (business *BusinessSimplify) Parse(data mapstr.MapStr) (*BusinessSimplify, 
 	return business, err
 }
 
+// BizSetSimplify biz set simplify
+type BizSetSimplify struct {
+	BKBizSetIDField   int64  `field:"bk_biz_set_id"`
+	BKBizSetNameField string `field:"bk_biz_set_name"`
+}
+
+// SetSimplify TODO
 type SetSimplify struct {
 	BKAppIDField   int64  `field:"bk_biz_id" json:"bk_biz_id" bson:"bk_biz_id"`
 	BKSetIDField   int64  `field:"bk_set_id" json:"bk_set_id" bson:"bk_set_id"`
@@ -149,6 +169,7 @@ func (is *SetSimplify) Parse(data mapstr.MapStr) (*SetSimplify, error) {
 	return is, err
 }
 
+// ModuleSimplify TODO
 type ModuleSimplify struct {
 	BKAppIDField      int64  `field:"bk_biz_id" json:"bk_biz_id" bson:"bk_biz_id"`
 	BKModuleIDField   int64  `field:"bk_module_id" json:"bk_module_id" bson:"bk_module_id"`
@@ -166,6 +187,7 @@ func (is *ModuleSimplify) Parse(data mapstr.MapStr) (*ModuleSimplify, error) {
 	return is, err
 }
 
+// HostSimplify TODO
 type HostSimplify struct {
 	BKAppIDField       int64  `field:"bk_biz_id" json:"bk_biz_id" bson:"bk_biz_id"`
 	BKModuleIDField    int64  `field:"bk_module_id" json:"bk_module_id" bson:"bk_module_id"`
@@ -175,6 +197,7 @@ type HostSimplify struct {
 	BKHostInnerIPField string `field:"bk_host_innerip" json:"bk_host_innerip" bson:"bk_host_innerip"`
 }
 
+// Parse TODO
 func (is *HostSimplify) Parse(data mapstr.MapStr) (*HostSimplify, error) {
 
 	err := mapstr.SetValueToStructByTags(is, data)
@@ -185,11 +208,13 @@ func (is *HostSimplify) Parse(data mapstr.MapStr) (*HostSimplify, error) {
 	return is, err
 }
 
+// PlatSimplify TODO
 type PlatSimplify struct {
 	BKCloudIDField   int64  `field:"bk_cloud_id" json:"bk_cloud_id" bson:"bk_cloud_id"`
 	BKCloudNameField string `field:"bk_cloud_name" json:"bk_cloud_name" bson:"bk_cloud_name"`
 }
 
+// Parse TODO
 func (is *PlatSimplify) Parse(data mapstr.MapStr) (*PlatSimplify, error) {
 
 	err := mapstr.SetValueToStructByTags(is, data)
@@ -200,12 +225,14 @@ func (is *PlatSimplify) Parse(data mapstr.MapStr) (*PlatSimplify, error) {
 	return is, err
 }
 
+// ProcessSimplify TODO
 type ProcessSimplify struct {
 	ProcessID    int64  `field:"bk_process_id" json:"bk_process_id" bson:"bk_process_id"`
 	ProcessName  string `field:"bk_process_name" json:"bk_process_name" bson:"bk_process_name"`
 	BKAppIDField int64  `field:"bk_biz_id" json:"bk_biz_id" bson:"bk_biz_id"`
 }
 
+// Parse TODO
 func (is *ProcessSimplify) Parse(data mapstr.MapStr) (*ProcessSimplify, error) {
 	err := mapstr.SetValueToStructByTags(is, data)
 	if nil != err {

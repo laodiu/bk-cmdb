@@ -1,3 +1,15 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import index from '@/views/index/router.config'
 import hostLanding from '@/views/host-details/router.config'
 
@@ -33,12 +45,15 @@ import businessSet from '@/views/business-set/router.config'
 import businessSetTopology from '@/views/business-set-topology/router.config.js'
 
 import statusPermission from '@/views/status/permission'
+import statusNonExistBusiness from '@/views/status/non-exist-business.vue'
 import statusError from '@/views/status/error'
 
 /**
  * 平台管理
  */
 import globalConfig from '@/views/global-config/router.config'
+
+import { MENU_BUSINESS } from '@/dictionary/menu-symbol'
 
 const flatternViews = (views) => {
   const flatterned = []
@@ -56,8 +71,14 @@ export const injectStatusComponents = (views) => {
   views.forEach((view) => {
     view.components = {
       default: view.component,
-      permission: statusPermission,
       error: statusError
+    }
+
+    // 业务视图的permission是定制的，将无权限与业务不存在统一为一个无权限页面
+    if (view.meta?.owner === MENU_BUSINESS) {
+      view.components.permission = statusNonExistBusiness
+    } else {
+      view.components.permission = statusPermission
     }
   })
   return views

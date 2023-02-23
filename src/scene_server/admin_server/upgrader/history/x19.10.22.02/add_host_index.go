@@ -21,6 +21,8 @@ import (
 	"configcenter/src/scene_server/admin_server/upgrader"
 	"configcenter/src/storage/dal"
 	"configcenter/src/storage/dal/types"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func isIndexExist(ctx context.Context, db dal.RDB, indexName string) (bool, error) {
@@ -46,16 +48,16 @@ func addHostIndex(ctx context.Context, db dal.RDB, conf *upgrader.Config) error 
 		return nil
 	}
 	idx := types.Index{
-		Keys: map[string]int32{
-			common.BKHostInnerIPField: 1,
-			common.BKCloudIDField:     1,
+		Keys: bson.D{
+			{common.BKHostInnerIPField, 1},
+			{common.BKCloudIDField, 1},
 		},
 		Name:       indexName,
 		Unique:     false,
 		Background: false,
 	}
 
-	if err := db.Table(common.BKTableNameBaseHost).CreateIndex(ctx, idx); err != nil {
+	if err := db.Table(common.BKTableNameBaseHost).CreateIndex(ctx, idx); err != nil && !db.IsDuplicatedError(err) {
 		blog.Errorf("CreateIndex failed, err: %+v", err)
 		return fmt.Errorf("CreateIndex failed, err: %v", err)
 	}

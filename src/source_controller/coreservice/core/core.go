@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package core TODO
 package core
 
 import (
@@ -21,6 +22,7 @@ import (
 	"configcenter/src/common/mapstr"
 	"configcenter/src/common/metadata"
 	"configcenter/src/common/selector"
+	"configcenter/src/kube/types"
 )
 
 // ModelAttributeGroup model attribute group methods definitions
@@ -119,6 +121,14 @@ type InstanceOperation interface {
 		error)
 }
 
+// KubeOperation crud operations on kube data.
+type KubeOperation interface {
+	CreateCluster(kit *rest.Kit, bizID int64, option *types.Cluster) (*types.Cluster, errors.CCErrorCoder)
+	BatchCreateNode(kit *rest.Kit, bizID int64, data []types.OneNodeCreateOption) ([]*types.Node, errors.CCErrorCoder)
+	GetSysSpecInfoByCond(kit *rest.Kit, spec types.SpecSimpleInfo, bizID int64,
+		hostID int64) (*types.SysSpec, bool, errors.CCErrorCoder)
+}
+
 // AssociationKind association kind methods
 type AssociationKind interface {
 	CreateAssociationKind(kit *rest.Kit, inputParam metadata.CreateAssociationKind) (*metadata.CreateOneDataResult,
@@ -196,6 +206,7 @@ type HostOperation interface {
 	UnlockHost(kit *rest.Kit, input *metadata.HostLockRequest) errors.CCError
 	QueryHostLock(kit *rest.Kit, input *metadata.QueryHostLockRequest) ([]metadata.HostLockData, errors.CCError)
 
+	// ListHosts TODO
 	// host search
 	ListHosts(kit *rest.Kit, input metadata.ListHosts) (*metadata.ListHostResult, error)
 
@@ -213,11 +224,13 @@ type AssociationOperation interface {
 	InstanceAssociation
 }
 
+// AuditOperation TODO
 type AuditOperation interface {
 	CreateAuditLog(kit *rest.Kit, logs ...metadata.AuditLog) error
 	SearchAuditLog(kit *rest.Kit, param metadata.QueryCondition) ([]metadata.AuditLog, uint64, error)
 }
 
+// StatisticOperation TODO
 type StatisticOperation interface {
 	SearchInstCount(kit *rest.Kit, inputParam map[string]interface{}) (uint64, error)
 	SearchChartData(kit *rest.Kit, inputParam metadata.ChartConfig) (interface{}, error)
@@ -234,6 +247,7 @@ type StatisticOperation interface {
 type Core interface {
 	ModelOperation() ModelOperation
 	InstanceOperation() InstanceOperation
+	KubeOperation() KubeOperation
 	AssociationOperation() AssociationOperation
 	TopoOperation() TopoOperation
 	DataSynchronizeOperation() DataSynchronizeOperation
@@ -252,6 +266,7 @@ type Core interface {
 
 // ProcessOperation methods
 type ProcessOperation interface {
+	// CreateServiceCategory TODO
 	// service category
 	CreateServiceCategory(kit *rest.Kit, category metadata.ServiceCategory) (*metadata.ServiceCategory,
 		errors.CCErrorCoder)
@@ -264,6 +279,7 @@ type ProcessOperation interface {
 	DeleteServiceCategory(kit *rest.Kit, categoryID int64) errors.CCErrorCoder
 	IsServiceCategoryLeafNode(kit *rest.Kit, categoryID int64) (bool, errors.CCErrorCoder)
 
+	// CreateServiceTemplate TODO
 	// service template
 	CreateServiceTemplate(kit *rest.Kit, template metadata.ServiceTemplate) (*metadata.ServiceTemplate,
 		errors.CCErrorCoder)
@@ -274,6 +290,7 @@ type ProcessOperation interface {
 		errors.CCErrorCoder)
 	DeleteServiceTemplate(kit *rest.Kit, serviceTemplateID int64) errors.CCErrorCoder
 
+	// CreateProcessTemplate TODO
 	// process template
 	CreateProcessTemplate(kit *rest.Kit, template metadata.ProcessTemplate) (*metadata.ProcessTemplate,
 		errors.CCErrorCoder)
@@ -284,6 +301,7 @@ type ProcessOperation interface {
 		errors.CCErrorCoder)
 	DeleteProcessTemplate(kit *rest.Kit, processTemplateID int64) errors.CCErrorCoder
 
+	// CreateServiceInstance TODO
 	// service instance
 	CreateServiceInstance(kit *rest.Kit, instance *metadata.ServiceInstance) (*metadata.ServiceInstance,
 		errors.CCErrorCoder)
@@ -302,6 +320,7 @@ type ProcessOperation interface {
 		process *metadata.Process) (string, errors.CCErrorCoder)
 	ReconstructServiceInstanceName(kit *rest.Kit, instanceID int64) errors.CCErrorCoder
 
+	// CreateProcessInstanceRelation TODO
 	// process instance relation
 	CreateProcessInstanceRelation(kit *rest.Kit, relation *metadata.ProcessInstanceRelation) (
 		*metadata.ProcessInstanceRelation, errors.CCErrorCoder)
@@ -317,16 +336,27 @@ type ProcessOperation interface {
 
 	GetBusinessDefaultSetModuleInfo(kit *rest.Kit, bizID int64) (metadata.BusinessDefaultSetModuleInfo,
 		errors.CCErrorCoder)
+
+	// CreateServiceTemplateAttrs TODO
+	// service template attribute
+	CreateServiceTemplateAttrs(kit *rest.Kit, attrs *metadata.CreateSvcTempAttrsOption) ([]uint64, errors.CCErrorCoder)
+	UpdateServTempAttr(kit *rest.Kit, option *metadata.UpdateServTempAttrOption) errors.CCErrorCoder
+	DeleteServiceTemplateAttribute(kit *rest.Kit, option *metadata.DeleteServTempAttrOption) errors.CCErrorCoder
+	ListServiceTemplateAttribute(kit *rest.Kit, option *metadata.ListServTempAttrOption) (*metadata.ServTempAttrData,
+		errors.CCErrorCoder)
 }
 
+// LabelOperation TODO
 type LabelOperation interface {
 	AddLabel(kit *rest.Kit, tableName string, option selector.LabelAddOption) errors.CCErrorCoder
 	RemoveLabel(kit *rest.Kit, tableName string, option selector.LabelRemoveOption) errors.CCErrorCoder
 
+	// UpdateLabel TODO
 	// update instances labels
 	UpdateLabel(kit *rest.Kit, tableName string, option *selector.LabelUpdateOption) errors.CCErrorCoder
 }
 
+// SetTemplateOperation TODO
 type SetTemplateOperation interface {
 	CreateSetTemplate(kit *rest.Kit, bizID int64, option metadata.CreateSetTemplateOption) (metadata.SetTemplate,
 		errors.CCErrorCoder)
@@ -339,8 +369,14 @@ type SetTemplateOperation interface {
 	ListSetServiceTemplateRelations(kit *rest.Kit, bizID int64, setTemplateID int64) (
 		[]metadata.SetServiceTemplateRelation, errors.CCErrorCoder)
 	ListSetTplRelatedSvcTpl(kit *rest.Kit, bizID, setTemplateID int64) ([]metadata.ServiceTemplate, errors.CCErrorCoder)
+	CreateSetTempAttr(kit *rest.Kit, option *metadata.CreateSetTempAttrsOption) ([]uint64, errors.CCErrorCoder)
+	UpdateSetTempAttr(kit *rest.Kit, option *metadata.UpdateSetTempAttrOption) errors.CCErrorCoder
+	DeleteSetTemplateAttribute(kit *rest.Kit, option *metadata.DeleteSetTempAttrOption) errors.CCErrorCoder
+	ListSetTemplateAttribute(kit *rest.Kit, option *metadata.ListSetTempAttrOption) (*metadata.SetTempAttrData,
+		errors.CCErrorCoder)
 }
 
+// HostApplyRuleOperation TODO
 type HostApplyRuleOperation interface {
 	CreateHostApplyRule(kit *rest.Kit, bizID int64, option metadata.CreateHostApplyRuleOption) (metadata.HostApplyRule,
 		errors.CCErrorCoder)
@@ -362,6 +398,7 @@ type HostApplyRuleOperation interface {
 		[]metadata.SrvTemplate, errors.CCErrorCoder)
 }
 
+// CloudOperation TODO
 type CloudOperation interface {
 	CreateAccount(kit *rest.Kit, account *metadata.CloudAccount) (*metadata.CloudAccount, errors.CCErrorCoder)
 	SearchAccount(kit *rest.Kit, option *metadata.SearchCloudOption) (*metadata.MultipleCloudAccount,
@@ -382,6 +419,7 @@ type CloudOperation interface {
 	DeleteDestroyedHostRelated(kit *rest.Kit, option *metadata.DeleteDestroyedHostRelatedOption) errors.CCErrorCoder
 }
 
+// SystemOperation TODO
 type SystemOperation interface {
 	GetSystemUserConfig(kit *rest.Kit) (map[string]interface{}, errors.CCErrorCoder)
 	SearchConfigAdmin(kit *rest.Kit) (*metadata.ConfigAdmin, errors.CCErrorCoder)
@@ -389,11 +427,13 @@ type SystemOperation interface {
 	UpdatePlatformSettingConfig(kit *rest.Kit, input *metadata.PlatformSettingConfig) errors.CCErrorCoder
 }
 
+// AuthOperation TODO
 type AuthOperation interface {
 	SearchAuthResource(kit *rest.Kit, param metadata.PullResourceParam) (int64, []map[string]interface{},
 		errors.CCErrorCoder)
 }
 
+// CommonOperation TODO
 type CommonOperation interface {
 	GetDistinctField(kit *rest.Kit, param *metadata.DistinctFieldOption) ([]interface{}, errors.CCErrorCoder)
 	GetDistinctCount(kit *rest.Kit, param *metadata.DistinctFieldOption) (int64, errors.CCErrorCoder)
@@ -402,6 +442,7 @@ type CommonOperation interface {
 type core struct {
 	model           ModelOperation
 	instance        InstanceOperation
+	container       KubeOperation
 	association     AssociationOperation
 	dataSynchronize DataSynchronizeOperation
 	topo            TopoOperation
@@ -422,6 +463,7 @@ type core struct {
 func New(
 	model ModelOperation,
 	instance InstanceOperation,
+	container KubeOperation,
 	association AssociationOperation,
 	dataSynchronize DataSynchronizeOperation,
 	topo TopoOperation, host HostOperation,
@@ -440,6 +482,7 @@ func New(
 		model:           model,
 		instance:        instance,
 		association:     association,
+		container:       container,
 		dataSynchronize: dataSynchronize,
 		topo:            topo,
 		host:            host,
@@ -456,66 +499,87 @@ func New(
 	}
 }
 
+// ModelOperation TODO
 func (m *core) ModelOperation() ModelOperation {
 	return m.model
 }
 
+// InstanceOperation TODO
 func (m *core) InstanceOperation() InstanceOperation {
 	return m.instance
 }
 
+// KubeOperation container related operations
+func (m *core) KubeOperation() KubeOperation {
+	return m.container
+}
+
+// AssociationOperation TODO
 func (m *core) AssociationOperation() AssociationOperation {
 	return m.association
 }
 
+// TopoOperation TODO
 func (m *core) TopoOperation() TopoOperation {
 	return m.topo
 }
 
+// DataSynchronizeOperation TODO
 func (m *core) DataSynchronizeOperation() DataSynchronizeOperation {
 	return m.dataSynchronize
 }
 
+// HostOperation TODO
 func (m *core) HostOperation() HostOperation {
 	return m.host
 }
 
+// AuditOperation TODO
 func (m *core) AuditOperation() AuditOperation {
 	return m.audit
 }
 
+// ProcessOperation TODO
 func (m *core) ProcessOperation() ProcessOperation {
 	return m.process
 }
 
+// StatisticOperation TODO
 func (m *core) StatisticOperation() StatisticOperation {
 	return m.operation
 }
 
+// LabelOperation TODO
 func (m *core) LabelOperation() LabelOperation {
 	return m.label
 }
 
+// SetTemplateOperation TODO
 func (m *core) SetTemplateOperation() SetTemplateOperation {
 	return m.setTemplate
 }
 
+// SystemOperation TODO
 func (m *core) SystemOperation() SystemOperation {
 	return m.sys
 }
 
+// HostApplyRuleOperation TODO
 func (m *core) HostApplyRuleOperation() HostApplyRuleOperation {
 	return m.hostApplyRule
 }
 
+// CloudOperation TODO
 func (m *core) CloudOperation() CloudOperation {
 	return m.cloud
 }
 
+// AuthOperation TODO
 func (m *core) AuthOperation() AuthOperation {
 	return m.auth
 }
 
+// CommonOperation TODO
 func (m *core) CommonOperation() CommonOperation {
 	return m.common
 }

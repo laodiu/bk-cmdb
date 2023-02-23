@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="clearfix" v-if="template">
     <div class="info-item fl" :title="`${$t('服务模板')} : ${template.name}`">
@@ -29,7 +41,7 @@
 </template>
 
 <script>
-  import { MENU_BUSINESS_HOST_APPLY, MENU_BUSINESS_SET_TOPOLOGY } from '@/dictionary/menu-symbol'
+  import { MENU_BUSINESS_HOST_APPLY, MENU_BUSINESS_SET_TOPOLOGY, MENU_BUSINESS_SERVICE_TEMPLATE_DETAILS } from '@/dictionary/menu-symbol'
   const serviceCategoryRequestId = Symbol('serviceCategoryRequestId')
   export default {
     name: 'service-template-info',
@@ -42,7 +54,7 @@
     data() {
       return {
         template: null,
-        autoApplyRule: null
+        serviceTemplateHostApplyEnabled: null
       }
     },
     computed: {
@@ -53,13 +65,16 @@
         const { objectBiz, bizSet } = this.$store.state
         return this.isBizSet ? bizSet.bizId : objectBiz.bizId
       },
+      moduleId() {
+        return this.selectedNode?.data?.bk_inst_id
+      },
       selectedNode() {
         return this.$store.state.businessHost.selectedNode
       },
       autoApplyEnable() {
         // 在不同版本的拓扑数据接口中，node节点中是否存在主机自动应用字段是不一致的
         // 所以，统一通过instance获取，保证数据获取的正确性
-        return this.instance.host_apply_enabled
+        return this.instance.host_apply_enabled || this.serviceTemplateHostApplyEnabled
       }
     },
     watch: {
@@ -73,6 +88,11 @@
     methods: {
       setInfo() {
         this.getServiceInfo()
+
+        // 使用了服务模板需要查看模块所属的服务模板是否开启了主机自动应用
+        if (this.instance.service_template_id) {
+          this.getModuleApplyStatusByTemplate()
+        }
       },
       async getServiceInfo() {
         const categories = await this.getServiceCategories()
@@ -84,6 +104,16 @@
           name: this.instance.service_template_id ? this.instance.bk_module_name : this.$t('无'),
           category: `${firstCategory.name || '--'} / ${secondCategory.name || '--'}`
         }
+      },
+      async getModuleApplyStatusByTemplate() {
+        const [moduleApplyStatus] = await this.$store.dispatch('hostApply/getModuleApplyStatusByTemplate', {
+          params: {
+            bk_biz_id: this.bizId,
+            bk_module_ids: [this.moduleId]
+          }
+        })
+
+        this.serviceTemplateHostApplyEnabled = moduleApplyStatus?.host_apply_enabled
       },
       async getServiceCategories() {
         try {
@@ -130,14 +160,9 @@
           this.$error(error.message)
         }
         this.$routerActions.redirect({
-          name: 'operationalTemplate',
+          name: MENU_BUSINESS_SERVICE_TEMPLATE_DETAILS,
           params: {
-            templateId: this.instance.service_template_id,
-            moduleId: this.selectedNode.data.bk_inst_id
-          },
-          query: {
-            node: this.selectedNode.id,
-            tab: 'nodeInfo'
+            templateId: this.instance.service_template_id
           },
           history: true
         })
@@ -146,10 +171,11 @@
         this.$routerActions.redirect({
           name: MENU_BUSINESS_HOST_APPLY,
           params: {
-            bizId: this.bizId
+            bizId: this.bizId,
+            mode: 'module'
           },
           query: {
-            module: this.selectedNode.data.bk_inst_id
+            id: this.moduleId
           },
           history: true
         })

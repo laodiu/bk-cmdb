@@ -1,9 +1,21 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="result-list">
     <template v-if="!fetching && list.length">
       <div class="data-list">
         <component v-for="(item, index) in list" :key="index"
-          :is="`item-${item.type}`"
+          :is="`item-${item.comp || item.type}`"
           :property-map="propertyMap"
           :data="item" />
       </div>
@@ -27,9 +39,13 @@
 </template>
 
 <script>
-  import { computed, defineComponent, reactive, ref, watch } from '@vue/composition-api'
+  import { computed, defineComponent, reactive, ref, watch } from 'vue'
+  import store from '@/store'
+  import routerActions from '@/router/actions'
+  import RouterQuery from '@/router/query'
   import NoSearchResults from '@/views/status/no-search-results.vue'
   import ItemBiz from './item-biz.vue'
+  import ItemBizSet from './item-bizset.vue'
   import ItemModel from './item-model.vue'
   import ItemInstance from './item-instance.vue'
   import ItemHost from './item-host.vue'
@@ -37,12 +53,13 @@
   import ItemModule from './item-module.vue'
   import useResult from './use-result'
   import useItem from './use-item'
-  import useRoute from './use-route.js'
   import { categories } from './use-tab.js'
 
   export default defineComponent({
     components: {
       NoSearchResults,
+      [ItemBiz.name]: ItemBiz,
+      [ItemBizSet.name]: ItemBizSet,
       [ItemBiz.name]: ItemBiz,
       [ItemModel.name]: ItemModel,
       [ItemInstance.name]: ItemInstance,
@@ -50,11 +67,9 @@
       [ItemSet.name]: ItemSet,
       [ItemModule.name]: ItemModule,
     },
-    setup(props, { root, emit }) {
-      const { $store, $route, $routerActions } = root
-
-      const { route } = useRoute(root)
-      const { result, fetching, getSearchResult } = useResult({ route }, root)
+    setup(props, { emit }) {
+      const route = computed(() => RouterQuery.route)
+      const { result, fetching, getSearchResult } = useResult({ route })
 
       const pagination = reactive({
         limit: 10,
@@ -74,7 +89,7 @@
 
       // 结果列表
       const hitList = computed(() => result.value.hits || [])
-      const { normalizationList: list } = useItem(hitList, root)
+      const { normalizationList: list } = useItem(hitList)
 
       // 根据当前分类设置分页总数
       watch(categories, (categories) => {
@@ -104,10 +119,10 @@
           return
         }
 
-        propertyMap.value = await $store.dispatch('objectModelProperty/batchSearchObjectAttribute', {
+        propertyMap.value = await store.dispatch('objectModelProperty/batchSearchObjectAttribute', {
           params: {
             bk_obj_id: { $in: [...new Set(modelIds)] },
-            bk_supplier_account: $store.getters.supplierAccount
+            bk_supplier_account: store.getters.supplierAccount
           }
         })
       })
@@ -116,8 +131,8 @@
 
       const handleLimitChange = (limit) => {
         pagination.limit = limit
-        $routerActions.redirect({
-          name: $route.name,
+        routerActions.redirect({
+          name: route.value.name,
           query: {
             ...route.value.query,
             ps: limit
@@ -126,8 +141,8 @@
       }
       const handlePageChange = (page) => {
         pagination.current = page
-        $routerActions.redirect({
-          name: $route.name,
+        routerActions.redirect({
+          name: route.value.name,
           query: {
             ...route.value.query,
             p: page

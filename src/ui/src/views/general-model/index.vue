@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="models-layout">
     <div class="models-options clearfix">
@@ -106,7 +118,7 @@
       </bk-table-column>
       <bk-table-column v-for="column in table.header"
         sortable="custom"
-        min-width="80"
+        :min-width="$tools.getHeaderPropertyMinWidth(column.property, { hasSort: true })"
         :key="column.id"
         :prop="column.id"
         :label="column.name"
@@ -151,6 +163,7 @@
           :properties="properties"
           :property-groups="propertyGroups"
           :inst="attribute.inst.edit"
+          :is-main-line="isMainLineModel"
           :type="attribute.type"
           :save-auth="{ type: $OPERATION.C_INST, relation: [model.id] }"
           @on-submit="handleSave"
@@ -286,6 +299,7 @@
       ...mapGetters('userCustom', ['usercustom']),
       ...mapGetters('objectBiz', ['bizId']),
       ...mapGetters('objectModelClassify', ['models', 'getModelById']),
+      ...mapGetters('objectMainLineModule', ['isMainLine']),
       objId() {
         return this.$route.params.objId
       },
@@ -343,6 +357,9 @@
           type: this.$OPERATION.U_INST,
           relation: [this.model.id, parseInt(instId, 10)]
         }))
+      },
+      isMainLineModel() {
+        return this.isMainLine(this.model)
       }
     },
     watch: {
@@ -401,6 +418,7 @@
       this.setupFilter()
       this.setDynamicBreadcrumbs()
       this.throttleGetTableData()
+      this.getMainLine()
     },
     mounted() {
       this.updateFilterTagHeight()
@@ -411,6 +429,7 @@
     },
     methods: {
       ...mapActions('objectModelFieldGroup', ['searchGroup']),
+      ...mapActions('objectMainLineModule', ['searchMainlineObject']),
       ...mapActions('objectModelProperty', ['searchObjectAttribute']),
       ...mapActions('objectCommonInst', [
         'createInst',
@@ -591,6 +610,9 @@
           params: {},
           config: { requestId: this.request.groups }
         })
+      },
+      getMainLine() {
+        return this.searchMainlineObject({})
       },
       setTableHeader() {
         return new Promise((resolve) => {

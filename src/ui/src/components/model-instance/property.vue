@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="property">
     <div class="group"
@@ -9,20 +21,21 @@
           v-for="property in $groupedProperties[index]"
           :key="property.id"
           :id="`property-item-${property.id}`">
-          <span class="property-name" v-bk-overflow-tips>
+          <div class="property-name" v-bk-overflow-tips>
             {{property.bk_property_name}}
-          </span>
-          <span :class="['property-value', { 'is-loading': loadingState.includes(property) }]"
-            v-bk-overflow-tips
+          </div>
+          <div :class="['property-value', { 'is-loading': loadingState.includes(property) }]"
             v-if="property !== editState.property">
             <cmdb-property-value
+              tag="div"
+              :is-show-overflow-tips="isShowOverflowTips(property)"
               :ref="`property-value-${property.bk_property_id}`"
               :value="instState[property.bk_property_id]"
               :property="property">
             </cmdb-property-value>
-          </span>
+          </div>
           <template v-if="!loadingState.includes(property)">
-            <template v-if="!isPropertyEditable(property)">
+            <template v-if="!readonly && !isPropertyEditable(property)">
               <i class="is-related property-edit icon-cc-edit"
                 v-bk-tooltips="{
                   content: $t('系统限定不可修改'),
@@ -36,7 +49,7 @@
                 }">
               </i>
             </template>
-            <template v-else>
+            <template v-else-if="!readonly">
               <cmdb-auth
                 style="margin: 8px 0 0 8px; font-size: 0;"
                 :auth="authData"
@@ -75,7 +88,8 @@
                 </span>
               </div>
             </template>
-            <template v-if="instState[property.bk_property_id] && property !== editState.property">
+            <template v-if="!$tools.isEmptyPropertyValue(instState[property.bk_property_id])
+              && property !== editState.property">
               <div class="copy-box">
                 <i
                   class="property-copy icon-cc-details-copy"
@@ -123,6 +137,10 @@
       resourceType: {
         type: String,
         default: ''
+      },
+      readonly: {
+        type: Boolean,
+        default: false
       }
     },
     data() {
@@ -157,6 +175,10 @@
       setFocus(id, focus) {
         const item = this.$el.querySelector(id)
         focus ? item.classList.add('focus') : item.classList.remove('focus')
+      },
+      isShowOverflowTips(property) {
+        const complexTypes = ['map']
+        return !complexTypes.includes(property.bk_property_type)
       },
       getPlaceholder(property) {
         const placeholderTxt = ['enum', 'list', 'organization'].includes(property.bk_property_type) ? '请选择xx' : '请输入xx'
@@ -226,8 +248,8 @@
         this.editState.value = null
       },
       handleCopy(propertyId) {
-        const component = this.$refs[`property-value-${propertyId}`]
-        const copyText = component[0] ? component[0].$el.innerText : ''
+        const [component] = this.$refs[`property-value-${propertyId}`]
+        const copyText = component?.getCopyValue() ?? ''
         this.$copyText(copyText).then(() => {
           this.showCopyTips = propertyId
           const timer = setTimeout(() => {
@@ -267,7 +289,7 @@
         }
     }
     .property-list {
-        width: 1000px;
+        width: 1208px;
         margin: 25px 0 0 0;
         color: #63656e;
         display: flex;
@@ -288,11 +310,12 @@
             }
             .property-name {
                 position: relative;
-                width: 160px;
+                width: 260px;
                 line-height: 32px;
                 padding: 0 16px 0 36px;
                 font-size: 14px;
                 color: #63656E;
+                text-align: right;
                 @include ellipsis;
                 &:after {
                     position: absolute;

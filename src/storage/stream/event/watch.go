@@ -14,6 +14,7 @@ package event
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"strings"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// Watch TODO
 func (e *Event) Watch(ctx context.Context, opts *types.WatchOptions) (*types.Watcher, error) {
 	if err := opts.CheckSetDefault(); err != nil {
 		return nil, err
@@ -87,7 +89,7 @@ func (e *Event) Watch(ctx context.Context, opts *types.WatchOptions) (*types.Wat
 		}
 
 		if err != nil {
-			if err == context.Canceled {
+			if errors.Is(err, context.Canceled) {
 				// if error is context cancelled, then loop watch will exit at the same time
 				return
 			}
@@ -138,10 +140,17 @@ func (e *Event) loopWatch(ctx context.Context,
 			if len(currentToken.Data) != 0 {
 				// if error occurs, then retry watch and start from the last token.
 				// so that we can continue the event from where it just broken.
+				streamOptions.StartAtOperationTime = nil
 				streamOptions.SetStartAfter(currentToken)
 			}
 
-			blog.InfoJSON("retry watch with pipeline: %s, options: %s, stream options: %s", pipeline, opts, streamOptions)
+			// if start at operation time and start after token is both set, use resume token instead of start time
+			if streamOptions.StartAtOperationTime != nil && streamOptions.StartAfter != nil {
+				blog.Infof("resume token and time is both set, discard the resume time, option: %+v", streamOptions)
+				streamOptions.StartAtOperationTime = nil
+			}
+
+			blog.InfoJSON("retry watch with pipeline: %s, opts: %s, stream opts: %s", pipeline, opts, streamOptions)
 
 			var err error
 			if opts.Collection != "" {
@@ -290,6 +299,7 @@ func (e *Event) setCleaner(ctx context.Context, eventChan chan *types.Event, col
 	}()
 }
 
+// isFatalError TODO
 // if watch encountered a fatal error, we should watch without resume token, which means from now.
 // errors like:
 // https://jira.mongodb.org/browse/SERVER-44610

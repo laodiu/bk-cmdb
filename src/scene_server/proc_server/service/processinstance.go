@@ -32,6 +32,7 @@ import (
 	processhook "configcenter/src/thirdparty/hooks/process"
 )
 
+// CreateProcessInstances TODO
 func (ps *ProcServer) CreateProcessInstances(ctx *rest.Contexts) {
 	input := new(metadata.CreateRawProcessInstanceInput)
 	if err := ctx.DecodeInto(input); err != nil {
@@ -45,7 +46,8 @@ func (ps *ProcServer) CreateProcessInstances(ctx *rest.Contexts) {
 		return
 	}
 	if len(input.Processes) > common.BKMaxUpdateOrCreatePageSize {
-		ctx.RespAutoError(ctx.Kit.CCError.CCError(common.CCErrCommPageLimitIsExceeded))
+		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommXXExceedLimit, "create process instances",
+			common.BKMaxUpdateOrCreatePageSize))
 		return
 	}
 
@@ -150,6 +152,7 @@ func (ps *ProcServer) createProcessInstances(ctx *rest.Contexts, input *metadata
 	return processIDs, nil
 }
 
+// UpdateProcessInstancesByIDs TODO
 func (ps *ProcServer) UpdateProcessInstancesByIDs(ctx *rest.Contexts) {
 	input := metadata.UpdateProcessByIDsInput{}
 	if err := ctx.DecodeInto(&input); err != nil {
@@ -254,6 +257,7 @@ func (ps *ProcServer) UpdateProcessInstancesByIDs(ctx *rest.Contexts) {
 	ctx.RespEntity(result)
 }
 
+// UpdateProcessInstances TODO
 func (ps *ProcServer) UpdateProcessInstances(ctx *rest.Contexts) {
 	input := metadata.UpdateRawProcessInstanceInput{}
 	if err := ctx.DecodeInto(&input); err != nil {
@@ -267,7 +271,8 @@ func (ps *ProcServer) UpdateProcessInstances(ctx *rest.Contexts) {
 	}
 
 	if len(input.Raw) > common.BKMaxUpdateOrCreatePageSize {
-		ctx.RespAutoError(ctx.Kit.CCError.CCError(common.CCErrCommPageLimitIsExceeded))
+		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommXXExceedLimit, "update process instances",
+			common.BKMaxUpdateOrCreatePageSize))
 		return
 	}
 	// generate audit log before processes are updated
@@ -657,6 +662,7 @@ func (ps *ProcServer) validateProcessInstance(kit *rest.Kit, process *metadata.P
 	return nil
 }
 
+// DeleteProcessInstance TODO
 func (ps *ProcServer) DeleteProcessInstance(ctx *rest.Contexts) {
 	input := new(metadata.DeleteProcessInstanceInServiceInstanceInput)
 	if err := ctx.DecodeInto(input); err != nil {
@@ -670,7 +676,8 @@ func (ps *ProcServer) DeleteProcessInstance(ctx *rest.Contexts) {
 	}
 
 	if len(input.ProcessInstanceIDs) > common.BKMaxDeletePageSize {
-		ctx.RespAutoError(ctx.Kit.CCError.CCError(common.CCErrCommPageLimitIsExceeded))
+		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommXXExceedLimit, "delete process instance",
+			common.BKMaxDeletePageSize))
 		return
 	}
 
@@ -857,6 +864,7 @@ func (ps *ProcServer) checkIfSvcInstNeedCascadeDelete(kit *rest.Kit, bizID int64
 	return updatedSvcInstIDs, delSvcInstIDs, nil
 }
 
+// ListProcessInstances TODO
 func (ps *ProcServer) ListProcessInstances(ctx *rest.Contexts) {
 	input := new(metadata.ListProcessInstancesOption)
 	if err := ctx.DecodeInto(input); err != nil {
@@ -1585,8 +1593,10 @@ func (ps *ProcServer) ListProcessInstancesDetails(ctx *rest.Contexts) {
 	ctx.RespEntity(processResult.Info)
 }
 
+// UnbindServiceTemplateOnModuleEnable TODO
 var UnbindServiceTemplateOnModuleEnable = true
 
+// RemoveTemplateBindingOnModule TODO
 func (ps *ProcServer) RemoveTemplateBindingOnModule(ctx *rest.Contexts) {
 	if UnbindServiceTemplateOnModuleEnable {
 		ctx.RespErrorCodeOnly(common.CCErrProcUnbindModuleServiceTemplateDisabled, "unbind service template from module disabled")

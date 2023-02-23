@@ -21,12 +21,14 @@ import (
 	"configcenter/src/scene_server/admin_server/upgrader"
 	"configcenter/src/storage/dal"
 	"configcenter/src/storage/dal/types"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func addPlatIndex(ctx context.Context, db dal.RDB, conf *upgrader.Config) error {
 	tableName := common.BKTableNameBasePlat
 	index := types.Index{
-		Keys:       map[string]int32{"bk_vpc_id": 1},
+		Keys:       bson.D{{"bk_vpc_id", 1}},
 		Name:       "vpcID",
 		Unique:     false,
 		Background: true,
@@ -47,7 +49,7 @@ func addPlatIndex(ctx context.Context, db dal.RDB, conf *upgrader.Config) error 
 	}
 
 	err = db.Table(tableName).CreateIndex(ctx, index)
-	if err != nil {
+	if err != nil && !db.IsDuplicatedError(err) {
 		blog.ErrorJSON("add index %s for table %s failed, err:%s", index, tableName, err)
 		return err
 	}

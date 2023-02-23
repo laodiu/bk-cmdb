@@ -128,7 +128,8 @@ func (s *Service) SearchObjectAttribute(ctx *rest.Contexts) {
 		}
 		grpName, ok := grpMap[attr.PropertyGroup]
 		if !ok {
-			blog.Errorf("failed to get property group name, attr: %s, property: %s", attr, attr.PropertyGroup)
+			blog.Errorf("failed to get property group name, attr: %v, property: %s, rid: %s", attr, attr.PropertyGroup,
+				ctx.Kit.Rid)
 			ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKPropertyNameField))
 			return
 		}
@@ -341,7 +342,7 @@ func (s *Service) ListHostModelAttribute(ctx *rest.Contexts) {
 
 	hostAttributes := make([]metadata.HostObjAttDes, 0)
 	for _, item := range result.Info {
-		hostApplyEnabled := metadata.CheckAllowHostApplyOnField(item.PropertyID)
+		hostApplyEnabled := metadata.CheckAllowHostApplyOnField(&item)
 		hostAttribute := metadata.HostObjAttDes{
 			ObjAttDes: metadata.ObjAttDes{
 				Attribute: item,

@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package toposerver TODO
 package toposerver
 
 import (
@@ -18,20 +19,24 @@ import (
 	"configcenter/src/apimachinery/rest"
 	"configcenter/src/apimachinery/toposerver/association"
 	"configcenter/src/apimachinery/toposerver/inst"
+	"configcenter/src/apimachinery/toposerver/kube"
 	"configcenter/src/apimachinery/toposerver/object"
 	"configcenter/src/apimachinery/toposerver/resourcedir"
 	"configcenter/src/apimachinery/toposerver/settemplate"
 	"configcenter/src/apimachinery/util"
 )
 
+// TopoServerClientInterface TODO
 type TopoServerClientInterface interface {
 	Instance() inst.InstanceInterface
 	Object() object.ObjectInterface
 	Association() association.AssociationInterface
 	SetTemplate() settemplate.SetTemplateInterface
 	ResourceDirectory() resourcedir.ResourceDirectoryInterface
+	Kube() kube.KubeOperationInterface
 }
 
+// NewTopoServerClient TODO
 func NewTopoServerClient(c *util.Capability, version string) TopoServerClientInterface {
 	base := fmt.Sprintf("/topo/%s", version)
 	return &topoServer{
@@ -43,22 +48,32 @@ type topoServer struct {
 	restCli rest.ClientInterface
 }
 
+// Instance TODO
 func (t *topoServer) Instance() inst.InstanceInterface {
 	return inst.NewInstanceClient(t.restCli)
 }
 
+// Kube container data related interface initialization.
+func (t *topoServer) Kube() kube.KubeOperationInterface {
+	return kube.NewKubeOperationInterface(t.restCli)
+}
+
+// Object TODO
 func (t *topoServer) Object() object.ObjectInterface {
 	return object.NewObjectInterface(t.restCli)
 }
 
+// Association TODO
 func (t *topoServer) Association() association.AssociationInterface {
 	return association.NewAssociationInterface(t.restCli)
 }
 
+// SetTemplate TODO
 func (t *topoServer) SetTemplate() settemplate.SetTemplateInterface {
 	return settemplate.NewSetTemplateInterface(t.restCli)
 }
 
+// ResourceDirectory TODO
 func (t *topoServer) ResourceDirectory() resourcedir.ResourceDirectoryInterface {
 	return resourcedir.NewResourceDirectoryInterface(t.restCli)
 }

@@ -761,6 +761,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .icon-cc-business-set:before {
 	content: "\e3a2";
 }
+.icon-summary-fill:before {
+	content: "\e3cb";
+}
 .icon-cc-lock-fill:before {
 	content: "\e3aa";
 }
@@ -811,4 +814,52 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .icon-cc-script-logo:before {
 	content: "\e3b6";
+}
+.icon-cc-unlock-fill:before {
+	content: "\e3bb";
+}
+.icon-cc-model-module:before {
+	content: "\e3c0";
+}
+.icon-cc-model-biz:before {
+	content: "\e3be";
+}
+.icon-cc-model-host:before {
+	content: "\e3bc";
+}
+.icon-cc-pod:before {
+	content: "\e3c2";
+}
+.icon-cc-model-workload:before {
+	content: "\e3bf";
+}
+.icon-cc-namespace:before {
+	content: "\e3c8";
+}
+.icon-cc-container-node:before {
+	content: "\e3c1";
+}
+.icon-cc-container:before {
+	content: "\e3c3";
+}
+.icon-cc-chart-new:before {
+	content: "\e3c5";
+}
+.icon-cc-log-new:before {
+	content: "\e3c7";
+}
+.icon-cc-platlink:before {
+	content: "\e3c4";
+}
+.icon-cc-location:before {
+	content: "\e3c6";
+}
+.icon-cc-open-eye:before {
+	content: "\e3c9";
+}
+.icon-cc-close-eye:before {
+	content: "\e3ca";
+}
+.icon-cc-pod-folder:before {
+	content: "\e3d2";
 }

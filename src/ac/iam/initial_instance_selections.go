@@ -28,6 +28,7 @@ func GenerateInstanceSelections(models []metadata.Object) []InstanceSelection {
 	return instSelections
 }
 
+// GenerateStaticInstanceSelections TODO
 func GenerateStaticInstanceSelections() []InstanceSelection {
 	return []InstanceSelection{
 		{
@@ -79,14 +80,14 @@ func GenerateStaticInstanceSelections() []InstanceSelection {
 			ResourceTypeChain: []ResourceChain{
 				// select the business at first.
 				businessChain,
-				//{
+				// {
 				//	SystemID: SystemIDCMDB,
 				//	ID:       Set,
-				//},
-				//{
+				// },
+				// {
 				//	SystemID: SystemIDCMDB,
 				//	ID:       Module,
-				//},
+				// },
 				// then select the host instances.
 				{
 					SystemID: SystemIDCMDB,
@@ -252,6 +253,17 @@ func GenerateStaticInstanceSelections() []InstanceSelection {
 				{
 					SystemID: SystemIDCMDB,
 					ID:       InstAsstEvent,
+				},
+			},
+		},
+		{
+			ID:     KubeWorkloadEventSelection,
+			Name:   "容器工作负载事件列表",
+			NameEn: "Kube Workload Event List",
+			ResourceTypeChain: []ResourceChain{
+				{
+					SystemID: SystemIDCMDB,
+					ID:       KubeWorkloadEvent,
 				},
 			},
 		},

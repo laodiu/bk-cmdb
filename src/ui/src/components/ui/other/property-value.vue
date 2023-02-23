@@ -1,6 +1,23 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
-  <user-value :value="value" v-if="isUser"></user-value>
+  <user-value
+    :value="value"
+    ref="complexTypeComp"
+    v-if="isUser">
+  </user-value>
   <table-value
+    ref="complexTypeComp"
     :value="value"
     :show-on="showOn"
     :format-cell-value="formatCellValue"
@@ -9,27 +26,47 @@
   </table-value>
   <service-template-value
     v-else-if="isServiceTemplate"
+    ref="complexTypeComp"
     :value="value"
     display-type="info">
   </service-template-value>
-  <component :is="tag" v-bind="attrs" v-else>{{displayValue}}</component>
+  <mapstring-value
+    v-else-if="isMapstring"
+    ref="complexTypeComp"
+    :value="value">
+  </mapstring-value>
+  <component
+    :is="tag"
+    v-bind="attrs"
+    v-bk-overflow-tips
+    v-else-if="isShowOverflowTips">
+    {{displayValue}}
+  </component>
+  <component
+    :is="tag"
+    v-bind="attrs"
+    v-else>
+    {{displayValue}}
+  </component>
 </template>
 
 <script>
   import UserValue from './user-value'
   import TableValue from './table-value'
   import ServiceTemplateValue from '@/components/search/service-template'
+  import MapstringValue from './mapstring-value.vue'
   const ORG_CACHES = {}
   export default {
     name: 'cmdb-property-value',
     components: {
       UserValue,
       TableValue,
-      ServiceTemplateValue
+      ServiceTemplateValue,
+      MapstringValue
     },
     props: {
       value: {
-        type: [String, Number, Array, Boolean],
+        type: [String, Number, Array, Boolean, Object],
         default: ''
       },
       property: {
@@ -67,7 +104,8 @@
         }
       },
       formatCellValue: Function,
-      multiple: Boolean
+      multiple: Boolean,
+      isShowOverflowTips: Boolean
     },
     data() {
       return {
@@ -93,6 +131,9 @@
       },
       isOrg() {
         return this.property.bk_property_type === 'organization'
+      },
+      isMapstring() {
+        return this.property.bk_property_type === 'map'
       }
     },
     watch: {
@@ -158,14 +199,21 @@
 
         ORG_CACHES[cacheKey] = displayValue
         return displayValue
+      },
+      getCopyValue() {
+        if (this.$refs?.complexTypeComp) {
+          return this.$refs?.complexTypeComp?.getCopyValue?.()
+        }
+        return this.displayValue
       }
     }
   }
 </script>
 
 <style lang="scss" scoped>
-    .value-primary-theme {
-        color: $primaryColor;
-        cursor: pointer;
-    }
+  .value-primary-theme {
+    color: $primaryColor;
+    cursor: pointer;
+    display: block;
+  }
 </style>

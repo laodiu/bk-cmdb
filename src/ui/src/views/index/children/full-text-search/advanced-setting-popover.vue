@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <bk-popover class="search-dropdown" v-bind="popoverProps" ref="popover">
     <bk-link theme="default" class="anchor"
@@ -42,18 +54,20 @@
 </template>
 
 <script>
-  import { defineComponent, toRefs } from '@vue/composition-api'
+  import { defineComponent, computed, toRefs, ref } from 'vue'
+  import routerActions from '@/router/actions'
+  import RouterQuery from '@/router/query'
   import ModelSelector  from '@/components/ui/selector/model.vue'
   import useAdvancedSetting from './use-advanced-setting.js'
-  import useRoute, { pickQuery } from './use-route.js'
+  import { pickQuery } from './use-route.js'
 
   export default defineComponent({
     components: {
       ModelSelector
     },
-    setup(props, { root, refs }) {
-      const { $routerActions } = root
-      const { route } = useRoute(root)
+    setup() {
+      const popover = ref(null)
+      const route = computed(() => RouterQuery.route)
 
       const popoverProps = {
         width: 500,
@@ -76,25 +90,26 @@
         handleTargetClick
       } = useAdvancedSetting({
         onShow() {
-          refs.popover.showHandler()
+          popover.value.showHandler()
         },
         onConfirm() {
           const query = pickQuery(route.value.query, ['tab', 'keyword'])
-          $routerActions.redirect({
+          routerActions.redirect({
             query: {
               ...query,
               t: Date.now()
             }
           })
-          refs.popover.hideHandler()
+          popover.value.hideHandler()
         },
         onCancel() {
-          refs.popover.hideHandler()
+          popover.value.hideHandler()
         }
-      }, root)
+      })
 
       return {
         ...toRefs(activeSetting),
+        popover,
         popoverProps,
         handleShow,
         handleTargetClick,

@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="host-apply-details">
     <template v-if="id">
@@ -61,11 +73,11 @@
                     <bk-button
                       :disabled="!hasConflict || disabled"
                       @click="$emit('view-conflict')">
-                      <span v-bk-tooltips="{ content: $t('无失效需处理') }" v-if="!hasConflict">
-                        {{$t('失效主机')}}<em class="conflict-num">{{conflictNum}}</em>
+                      <span v-bk-tooltips="{ content: $t('无未应用需处理') }" v-if="!hasConflict">
+                        {{$t('未应用主机')}}<em class="conflict-num">{{conflictNum}}</em>
                       </span>
                       <span v-else>
-                        {{$t('失效主机')}}<em class="conflict-num">{{conflictNum}}</em>
+                        {{$t('未应用主机')}}<em class="conflict-num">{{conflictNum}}</em>
                       </span>
                     </bk-button>
                   </template>
@@ -164,14 +176,14 @@
 </template>
 
 <script>
-  import { computed, defineComponent, ref, toRefs } from '@vue/composition-api'
+  import { computed, defineComponent, ref, toRefs } from 'vue'
   import {
     MENU_BUSINESS_HOST_AND_SERVICE,
     MENU_BUSINESS_SERVICE_TEMPLATE
   } from '@/dictionary/menu-symbol'
   import router from '@/router/index.js'
   import { formatTime } from '@/utils/tools.js'
-  import { CONFIG_MODE } from '@/services/service-template/index.js'
+  import { CONFIG_MODE } from '@/service/service-template/index.js'
   import propertyConfigTable from './property-config-table'
 
   export default defineComponent({

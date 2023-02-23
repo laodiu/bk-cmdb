@@ -21,19 +21,22 @@ import (
 	"configcenter/src/scene_server/admin_server/upgrader"
 	"configcenter/src/storage/dal"
 	"configcenter/src/storage/dal/types"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
+// CreateObjectIDIndex TODO
 func CreateObjectIDIndex(ctx context.Context, db dal.RDB, conf *upgrader.Config) error {
 	idx := types.Index{
-		Keys: map[string]int32{
-			common.BKObjIDField: 1,
+		Keys: bson.D{
+			{common.BKObjIDField, 1},
 		},
 		Name:       common.BKObjIDField,
 		Unique:     false,
 		Background: false,
 	}
 
-	if err := db.Table(common.BKTableNameObjUnique).CreateIndex(ctx, idx); err != nil {
+	if err := db.Table(common.BKTableNameObjUnique).CreateIndex(ctx, idx); err != nil && !db.IsDuplicatedError(err) {
 		blog.Errorf("CreateObjectIDIndex failed, err: %+v", err)
 		return fmt.Errorf("CreateObjectIDIndex failed, err: %v", err)
 	}

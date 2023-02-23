@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="classify-layout clearfix">
     <div class="classify-filter">
@@ -30,6 +42,7 @@
   import noSearchResults from '@/views/status/no-search-results.vue'
   import cmdbClassifyPanel from './children/classify-panel'
   import useInstanceCount from './children/use-instance-count.js'
+  import { BUILTIN_MODELS } from '@/dictionary/model-constants.js'
 
   export default {
     components: {
@@ -49,21 +62,22 @@
       ...mapGetters('userCustom', { collection: 'resourceCollection' }),
       filteredClassifications() {
         const result = []
-        const filterClassify = ['bk_biz_topo']
         this.classifications.forEach((classification) => {
-          if (!filterClassify.includes(classification.bk_classification_id)) {
-            const models = classification.bk_objects.filter((model) => {
-              const isInvisible = model.bk_ishidden
-              const isPaused = model.bk_ispaused
-              const isMatched = this.matchedModels ? this.matchedModels.includes(model.bk_obj_id) : true
-              return !isInvisible && !isPaused && isMatched
+          const models = classification.bk_objects.filter((model) => {
+            const isInvisible = model.bk_ishidden
+            const isPaused = model.bk_ispaused
+            const isMatched = this.matchedModels ? this.matchedModels.includes(model.bk_obj_id) : true
+
+            // 集群/模块暂不允许查看实例
+            const isModuleOrSet = [BUILTIN_MODELS.MODULE, BUILTIN_MODELS.SET].includes(model.bk_obj_id)
+
+            return !isInvisible && !isPaused && isMatched && !isModuleOrSet
+          })
+          if (models.length) {
+            result.push({
+              ...classification,
+              bk_objects: models
             })
-            if (models.length) {
-              result.push({
-                ...classification,
-                bk_objects: models
-              })
-            }
           }
         })
         return result

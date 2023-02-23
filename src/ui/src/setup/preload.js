@@ -1,6 +1,19 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { getAuthorizedBusiness, getAuthorizedBusinessSet } from '@/router/business-interceptor.js'
-import { verifyAuth } from '@/services/auth.js'
+import { verifyAuth } from '@/service/auth.js'
 import store from '@/store'
+import $http from '@/api'
 
 const preloadConfig = {
   fromCache: false,
@@ -66,7 +79,22 @@ export const verifyPlatformManagementAuth = async () => {
   }
 }
 
+/**
+ * 获取主线模型，数据会写入store
+ */
+const getMainLineModels = async () => {
+  store.dispatch('objectMainLineModule/searchMainlineObject', {
+    config: {
+      ...preloadConfig,
+      requestId: 'getMainLineModels'
+    }
+  })
+}
+
 export default async function (app) {
+  // 设置全局请求头
+  $http.setHeader('HTTP_BLUEKING_SUPPLIER_ID', store.getters.supplierAccount)
+
   if (window.Site.authscheme === 'iam') {
     verifyPlatformManagementAuth()
   } else {
@@ -79,6 +107,8 @@ export default async function (app) {
 
   // 获取有访问权限的业务集
   getAuthorizedBusinessSet()
+
+  getMainLineModels()
 
   return Promise.all([
     getGlobalConfig(app),
